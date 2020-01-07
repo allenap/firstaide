@@ -1,0 +1,161 @@
+use crate::cache;
+use crate::config;
+use crate::env;
+use crate::sums;
+use std::ffi::OsString;
+use std::fmt;
+use std::io::{self, Write};
+
+pub const NAME: &str = "hook";
+
+type Result = std::result::Result<(), Error>;
+
+pub enum Error {
+    Io(io::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+        match self {
+            Io(err) => write!(f, "input/output error: {}", err),
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
+    }
+}
+
+pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
+    clap::SubCommand::with_name(NAME)
+        .about("Hooks the development environment; source the output from .envrc")
+        .arg(
+            clap::Arg::with_name("dir")
+                .value_name("DIR")
+                .help("The directory in which to build"),
+        )
+}
+
+pub fn run(args: &clap::ArgMatches) -> Result {
+    let config = config::Config::new(args.value_of_os("dir"));
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
+    // Wrap everything in { ... } so that it's only evaluated by Bash once
+    // completely written out. This is for correctness, but it might also help
+    // prevent seeing broken pipe errors.
+    writeln!(&mut handle, "{{ # Start.")?;
+    writeln!(&mut handle)?;
+
+    fn chunk(title: &str, chunk: &[u8]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let comments = title.lines().map(|line| format!("### {}\n", line));
+        buf.extend(comments.map(String::into_bytes).flatten());
+        buf.extend(chunk);
+        buf.push(b'\n');
+        buf
+    }
+
+    fn watch<T: Into<OsString>>(filename: T) -> Vec<u8> {
+        let function: &[u8] = b"watch_file";
+        let filename = crate::bash::escape(filename);
+        let mut out = Vec::with_capacity(function.len() + 1 + filename.len() + 1);
+        out.extend(function);
+        out.push(b' ');
+        out.extend(filename);
+        out.push(b'\n');
+        out
+    }
+
+    handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
+    handle.write_all(&chunk(
+        "Load parent environments.",
+        include_bytes!("hook/parent.sh"),
+    ))?;
+
+    match cache::Cache::load(config.cache_file()) {
+        Ok(cache) => {
+            let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+            if sums::equal(&sums_now, &cache.sums) {
+                handle.write_all(&chunk(
+                    "Environment is up-to-date!",
+                    include_bytes!("hook/active.sh"),
+                ))?;
+                handle.write_all(&chunk(
+                    "Cached environment follows:",
+                    &env_diff_dump(&cache.diff),
+                ))?;
+                handle.write_all(&chunk(
+                    "Check __monorepo_env.",
+                    include_bytes!("hook/active.check.sh"),
+                ))?;
+            } else {
+                handle.write_all(&chunk(
+                    "Environment is STALE!",
+                    include_bytes!("hook/stale.sh"),
+                ))?;
+                handle.write_all(&chunk(
+                    "Cached environment follows:",
+                    &env_diff_dump(&cache.diff),
+                ))?;
+                handle.write_all(&chunk(
+                    "Override __monorepo_env.",
+                    b"export __monorepo_env=active/stale\n",
+                ))?;
+            }
+            let watches = cache.sums.into_iter().map(|sum| watch(sum.path()));
+            handle.write_all(&chunk(
+                "Watch dependencies.",
+                &watches.flatten().collect::<Vec<u8>>(),
+            ))?;
+        }
+        Err(_) => {
+            handle.write_all(&chunk(
+                "Environment not built or otherwise broken!",
+                include_bytes!("hook/inactive.sh"),
+            ))?;
+            handle.write_all(&chunk(
+                "Set __monorepo_env.",
+                b"export __monorepo_env=inactive\n",
+            ))?;
+        }
+    };
+
+    handle.write_all(&chunk("Watch the cache file.", &watch(config.cache_file())))?;
+
+    writeln!(&mut handle, "}} # End.")?;
+
+    Ok(())
+}
+
+pub fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {
+    use crate::bash::escape as esc;
+    use crate::env::Change::*;
+
+    let mut output: Vec<u8> = Vec::new();
+    for change in diff {
+        match change {
+            Added(k, vb) => {
+                output.extend(b"export ");
+                output.extend(esc(k));
+                output.extend(b"=");
+                output.extend(esc(vb));
+            }
+            Changed(k, _va, vb) => {
+                output.extend(b"export ");
+                output.extend(esc(k));
+                output.extend(b"=");
+                output.extend(esc(vb));
+            }
+            Removed(k, _va) => {
+                output.extend(b"unset ");
+                output.extend(esc(k));
+            }
+        }
+        output.push(b'\n');
+    }
+    output
+}
