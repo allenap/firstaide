@@ -135,8 +135,13 @@ pub fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {
     use crate::bash::escape as esc;
     use crate::env::Change::*;
 
+    // Filter out DIRENV_ and SSH_ vars.
+    let diff = diff
+        .exclude_by_prefix(b"DIRENV_")
+        .exclude_by_prefix(b"SSH_");
+
     let mut output: Vec<u8> = Vec::new();
-    for change in diff {
+    for change in &diff {
         match change {
             Added(k, vb) => {
                 output.extend(b"export ");
