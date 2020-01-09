@@ -1,6 +1,8 @@
+use bstr::ByteSlice;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::ffi::OsString;
+use std::os::unix::ffi::OsStrExt;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Change {
@@ -42,12 +44,11 @@ impl Diff {
         DiffIter(self.0.iter())
     }
 
-    pub fn filter_by_prefix<T: Into<OsString>>(&self, prefix: T) -> Self {
-        let pfx: String = prefix.into().to_string_lossy().into_owned();
+    pub fn exclude_by_prefix(&self, prefix: &[u8]) -> Self {
         Self(
             self.0
                 .iter()
-                .filter(|item| item.name().to_string_lossy().into_owned().starts_with(&pfx))
+                .filter(|change| !change.name().as_bytes().starts_with_str(&prefix))
                 .cloned()
                 .collect(),
         )
@@ -193,6 +194,34 @@ mod tests {
                 removed("CAROL", "c"),
             ]),
             diff(&ea, &eb)
+        );
+    }
+
+    #[test]
+    fn can_exclude_by_prefix() {
+        let ea = env(&[
+            ("ALICE", "a"),
+            ("BOB", "b"),
+            ("BOBBY", "bb"),
+            ("CAROL", "c"),
+        ]);
+        let eb = env(&[("ACCRINGTON", "a"), ("BOBBINGTON", "faa")]);
+        assert_eq!(
+            Diff::from(&[
+                added("ACCRINGTON", "a"),
+                removed("ALICE", "a"),
+                removed("CAROL", "c"),
+            ]),
+            diff(&ea, &eb).exclude_by_prefix(b"BOB")
+        );
+        assert_eq!(
+            Diff::from(&[
+                added("ACCRINGTON", "a"),
+                removed("ALICE", "a"),
+                removed("BOB", "b"),
+                removed("CAROL", "c"),
+            ]),
+            diff(&ea, &eb).exclude_by_prefix(b"BOBB")
         );
     }
 
