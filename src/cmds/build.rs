@@ -19,7 +19,6 @@ pub enum Error {
     EnvOutsideDecode(bincode::Error),
     EnvInsideCapture,
     EnvInsideDecode(bincode::Error),
-    DoctorNix,
     Cache(bincode::Error),
 }
 
@@ -33,7 +32,6 @@ impl fmt::Display for Error {
             EnvOutsideDecode(err) => write!(f, "problem decoding outside environment: {}", err),
             EnvInsideCapture => write!(f, "could not capture inside environment"),
             EnvInsideDecode(err) => write!(f, "problem decoding inside environment: {}", err),
-            DoctorNix => write!(f, "problem running Dr. Nix"),
             Cache(err) => write!(f, "cache could not be saved: {}", err),
         }
     }
@@ -122,12 +120,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         sums: checksums,
     };
     cache.save(config.cache_file()).map_err(Error::Cache)?;
-
-    // 7. Run Dr. Nix.
-    let mut doctor_nix = config.command_to_run_doctor_nix(&env_outside).spawn()?;
-    if !doctor_nix.wait()?.success() {
-        return Err(Error::DoctorNix);
-    }
 
     // Done.
     Ok(())

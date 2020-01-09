@@ -72,16 +72,6 @@ impl Config {
         command
     }
 
-    pub fn command_to_run_doctor_nix(&self, env: &[crate::env::Item]) -> Command {
-        let mut command = Command::new("iac/development/nix-doctor");
-        command
-            .current_dir(&self.dir)
-            .arg("--only-errors")
-            .env_clear()
-            .envs(env.iter().cloned());
-        command
-    }
-
     pub fn watch_files(&self) -> io::Result<Vec<PathBuf>> {
         let mut command = Command::new("iac/development/direnv-dependencies");
         command.current_dir(&self.dir);
