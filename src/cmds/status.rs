@@ -1,5 +1,6 @@
 use crate::cache;
 use crate::config;
+use crate::status::EnvironmentStatus;
 use crate::sums;
 use std::fmt;
 use std::io::{self, Write};
@@ -42,20 +43,18 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    match cache::Cache::load(config.cache_file()) {
+    let status = match cache::Cache::load(config.cache_file()) {
         Ok(cache) => {
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
-                writeln!(&mut handle, "Environment is up-to-date!")?;
-                Ok(0)
+                EnvironmentStatus::Okay
             } else {
-                writeln!(&mut handle, "Environment is STALE!")?;
-                Ok(1)
+                EnvironmentStatus::Stale
             }
         }
-        Err(_) => {
-            writeln!(&mut handle, "Environment not built or otherwise broken!")?;
-            Ok(2)
-        }
-    }
+        Err(_) => EnvironmentStatus::Unknown,
+    };
+
+    writeln!(&mut handle, "{}", status)?;
+    Ok(status.code())
 }

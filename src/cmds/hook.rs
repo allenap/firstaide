@@ -1,6 +1,7 @@
 use crate::cache;
 use crate::config;
 use crate::env;
+use crate::status::EnvironmentStatus;
 use crate::sums;
 use std::ffi::OsString;
 use std::fmt;
@@ -81,7 +82,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 handle.write_all(&chunk(
-                    "Environment is up-to-date!",
+                    &EnvironmentStatus::Okay.display(),
                     include_bytes!("hook/active.sh"),
                 ))?;
                 handle.write_all(&chunk(
@@ -94,7 +95,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 ))?;
             } else {
                 handle.write_all(&chunk(
-                    "Environment is STALE!",
+                    &EnvironmentStatus::Stale.display(),
                     include_bytes!("hook/stale.sh"),
                 ))?;
                 handle.write_all(&chunk(
@@ -114,7 +115,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         }
         Err(_) => {
             handle.write_all(&chunk(
-                "Environment not built or otherwise broken!",
+                &EnvironmentStatus::Unknown.display(),
                 include_bytes!("hook/inactive.sh"),
             ))?;
             handle.write_all(&chunk(
