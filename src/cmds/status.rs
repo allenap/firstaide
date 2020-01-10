@@ -30,7 +30,13 @@ impl From<io::Error> for Error {
 
 pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
     clap::SubCommand::with_name(NAME)
-        .about("Hooks the development environment; source the output from .envrc")
+        .about("Reports the status of the development environment")
+        .long_about(concat!(
+            "Reports the status of the development environment.\n",
+            "- Exits 0 when the environment is up-to-date.\n",
+            "- Exits 1 when the environment is stale.\n",
+            "- Exits 2 when the environment is unbuilt, or when an error occurs.",
+        ))
         .arg(
             clap::Arg::with_name("dir")
                 .value_name("DIR")

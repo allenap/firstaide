@@ -22,6 +22,7 @@ fn main() {
         .subcommand(cmds::clean::argspec())
         .subcommand(cmds::hook::argspec())
         .subcommand(cmds::env::argspec().setting(clap::AppSettings::Hidden))
+        .setting(clap::AppSettings::DeriveDisplayOrder)
         .setting(clap::AppSettings::SubcommandRequired)
         .get_matches();
 
