@@ -42,6 +42,12 @@ impl Config {
         command
     }
 
+    /// Capture the environment from outside of the Nix environment.
+    ///
+    /// We also ask direnv to load as if from the top level of the directory
+    /// tree. This should exclude all direnv environments coming from `.envrc`s
+    /// out there, unless someone has put a `.envrc` in the root. Future work:
+    /// add a feature to direnv to execute without any `.envrc`s loaded.
     pub fn command_to_dump_env_outside<T: Into<PathBuf>>(&self, out: T) -> Command {
         let mut command = self.command_direnv();
         command
@@ -54,14 +60,24 @@ impl Config {
         command
     }
 
+    /// Capture the environment from inside the Nix environment.
+    ///
+    /// We also ask direnv to load as if from the *parent* of the build
+    /// directory. We do want to include all parent `.envrc`s, but we do NOT
+    /// want the `.envrc` in the build directory itself from influencing the
+    /// build: *it* is a consumer of *this*, not the other way around or some
+    /// weird ouroboros of both.
     pub fn command_to_dump_env_inside<T: Into<PathBuf>>(
         &self,
         out: T,
         env: &[crate::env::Item],
     ) -> Command {
-        let mut command = Command::new("nix/exec");
+        let mut command = self.command_direnv();
         command
             .current_dir(&self.dir)
+            .arg("exec")
+            .arg(self.abspath(".."))
+            .arg("nix/exec")
             .arg("shell.nix")
             .arg(&self.exe)
             .arg("env")
