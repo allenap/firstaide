@@ -3,6 +3,7 @@ use crate::config;
 use crate::env;
 use crate::sums;
 use bincode;
+use spinners::{Spinner, Spinners};
 use std::fmt;
 use std::fs;
 use std::io;
@@ -55,7 +56,13 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
 
 pub fn run(args: &clap::ArgMatches) -> Result {
     let config = config::Config::new(args.value_of_os("dir"));
+    let spinner = Spinner::new(Spinners::Dots, "".into());
+    let result = build(config);
+    spinner.stop();
+    result
+}
 
+fn build(config: config::Config) -> Result {
     // 0. Check `direnv` is new enough. Older versions have bugs that prevent
     // building from working correctly.
     check_direnv_version(&config).map_err(Error::DirEnv)?;
