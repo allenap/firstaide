@@ -11,17 +11,6 @@ pub struct Config {
     exe: PathBuf,
 }
 
-/*
-
-A future config file (`.firstaide.toml`) might contain:
-
-- Command to capture outside environment, with default, e.g. `direnv exec / firstaide env`
-- Command to capture inside environment, with default, e.g. `nix/exec firstaide env`
-- Where to store the cache file, with default, e.g. `.firstaide.cache`.
-- Command to yield files to watch, with default, e.g. `.firstaide.watch`.
-
-*/
-
 impl Config {
     pub fn new<T: Into<PathBuf>>(dir: Option<T>) -> Self {
         let dir = match dir {
@@ -71,10 +60,16 @@ impl Config {
         out: T,
         env: &[crate::env::Item],
     ) -> Command {
-        let mut command = Command::new("nix/exec");
+        let command_path = (self.dir.join(".firstaide.env"))
+            .canonicalize()
+            .expect(concat!(
+                "could not find/resolve .firstaide.env; please create a script ",
+                "called .firstaide.env that will execute its arguments in the ",
+                "target environment",
+            ));
+        let mut command = Command::new(command_path);
         command
             .current_dir(&self.dir)
-            .arg("shell.nix")
             .arg(&self.exe)
             .arg("env")
             .arg("--out")
@@ -85,7 +80,14 @@ impl Config {
     }
 
     pub fn watch_files(&self) -> io::Result<Vec<PathBuf>> {
-        let mut command = Command::new("iac/development/direnv-dependencies");
+        let command_path = (self.dir.join(".firstaide.watch"))
+            .canonicalize()
+            .expect(concat!(
+                "could not find/resolve .firstaide.watch; please create a script ",
+                "called .firstaide.watch that emits a NUL-delimited list of files ",
+                "to watch for updates",
+            ));
+        let mut command = Command::new(command_path);
         command.current_dir(&self.dir);
         let output = command.output()?;
         let names = output
@@ -115,6 +117,15 @@ impl Config {
     }
 
     pub fn cache_dir(&self) -> PathBuf {
-        self.dir.join("_build").join("firstaide")
+        self.dir
+            .join(".firstaide.dir")
+            .read_link()
+            .expect(concat!(
+                "could not determine cache directory; please symlink .firstaide.dir ",
+                "to it (can be dangling symlink; the directory pointed to will be ",
+                "created)",
+            ))
+            .absolutize()
+            .expect("could not calculate absolute path to cache directory")
     }
 }
