@@ -7,8 +7,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct Config {
-    dir: PathBuf,
-    exe: PathBuf,
+    pub build_dir: PathBuf,
+    pub cache_dir: PathBuf,
+    build_exe: PathBuf,
+    watch_exe: PathBuf,
+    self_exe: PathBuf,
 }
 
 impl Config {
@@ -18,16 +21,40 @@ impl Config {
             None => PathBuf::new(),
         };
         Config {
-            dir: dir
+            build_dir: dir
                 .absolutize()
                 .expect("could not calculate absolute path to environment directory"),
-            exe: env::current_exe().expect("could not obtain path to this executable"),
+
+            cache_dir: dir
+                .join(".firstaide.dir")
+                .read_link()
+                .expect(concat!(
+                    "could not determine cache directory; please symlink .firstaide.dir ",
+                    "to it (can be dangling symlink; the directory pointed to will be ",
+                    "created)",
+                ))
+                .absolutize()
+                .expect("could not calculate absolute path to cache directory"),
+
+            build_exe: dir.join(".firstaide.env").canonicalize().expect(concat!(
+                "could not find/resolve .firstaide.env; please create a script ",
+                "called .firstaide.env that will execute its arguments in the ",
+                "target environment",
+            )),
+
+            watch_exe: dir.join(".firstaide.watch").canonicalize().expect(concat!(
+                "could not find/resolve .firstaide.watch; please create a script ",
+                "called .firstaide.watch that emits a NUL-delimited list of files ",
+                "to watch for updates",
+            )),
+
+            self_exe: env::current_exe().expect("could not obtain path to this executable"),
         }
     }
 
     pub fn command_to_allow_direnv(&self) -> Command {
         let mut command = self.command_direnv();
-        command.arg("allow").arg("--").arg(&self.dir);
+        command.arg("allow").arg("--").arg(&self.build_dir);
         command
     }
 
@@ -41,10 +68,10 @@ impl Config {
     pub fn command_to_dump_env_outside<T: Into<PathBuf>>(&self, out: T) -> Command {
         let mut command = self.command_direnv();
         command
-            .current_dir(&self.dir)
+            .current_dir(&self.build_dir)
             .arg("exec")
             .arg(self.abspath(".."))
-            .arg(&self.exe)
+            .arg(&self.self_exe)
             .arg("env")
             .arg("--out")
             .arg(out.into());
@@ -60,17 +87,10 @@ impl Config {
         out: T,
         env: &[crate::env::Item],
     ) -> Command {
-        let command_path = (self.dir.join(".firstaide.env"))
-            .canonicalize()
-            .expect(concat!(
-                "could not find/resolve .firstaide.env; please create a script ",
-                "called .firstaide.env that will execute its arguments in the ",
-                "target environment",
-            ));
-        let mut command = Command::new(command_path);
+        let mut command = Command::new(&self.build_exe);
         command
-            .current_dir(&self.dir)
-            .arg(&self.exe)
+            .current_dir(&self.build_dir)
+            .arg(&self.self_exe)
             .arg("env")
             .arg("--out")
             .arg(out.into())
@@ -80,15 +100,8 @@ impl Config {
     }
 
     pub fn watch_files(&self) -> io::Result<Vec<PathBuf>> {
-        let command_path = (self.dir.join(".firstaide.watch"))
-            .canonicalize()
-            .expect(concat!(
-                "could not find/resolve .firstaide.watch; please create a script ",
-                "called .firstaide.watch that emits a NUL-delimited list of files ",
-                "to watch for updates",
-            ));
-        let mut command = Command::new(command_path);
-        command.current_dir(&self.dir);
+        let mut command = Command::new(&self.watch_exe);
+        command.current_dir(&self.build_dir);
         let output = command.output()?;
         let names = output
             .stdout
@@ -98,11 +111,11 @@ impl Config {
         Ok(paths.map(|path| self.abspath(path)).collect())
     }
 
-    /// Return an absolute path, resolved relative to `self.dir`.
+    /// Return an absolute path, resolved relative to `self.build_dir`.
     fn abspath<T: AsRef<Path>>(&self, path: T) -> PathBuf {
         let p = path.as_ref();
         if p.is_relative() {
-            self.dir.join(p)
+            self.build_dir.join(p)
         } else {
             p.to_path_buf()
         }
@@ -113,19 +126,6 @@ impl Config {
     }
 
     pub fn cache_file(&self) -> PathBuf {
-        self.cache_dir().join("cache")
-    }
-
-    pub fn cache_dir(&self) -> PathBuf {
-        self.dir
-            .join(".firstaide.dir")
-            .read_link()
-            .expect(concat!(
-                "could not determine cache directory; please symlink .firstaide.dir ",
-                "to it (can be dangling symlink; the directory pointed to will be ",
-                "created)",
-            ))
-            .absolutize()
-            .expect("could not calculate absolute path to cache directory")
+        self.cache_dir.join("cache")
     }
 }

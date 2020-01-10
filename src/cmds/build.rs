@@ -66,12 +66,12 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     }
 
     // 2. Create output directory.
-    fs::create_dir_all(config.cache_dir())?;
+    fs::create_dir_all(&config.cache_dir)?;
 
     // Setting up additional OS pipes for subprocesses to communicate back to us
     // is not well supported in the Rust standard library, so we use files in a
     // temporary directory instead.
-    let temp_dir = tempfile::TempDir::new_in(config.cache_dir())?;
+    let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)?;
     let temp_path = temp_dir.path().to_owned();
 
     // 3a. Capture outside environment.

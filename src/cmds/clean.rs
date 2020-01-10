@@ -40,7 +40,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     let config = config::Config::new(args.value_of_os("dir"));
 
     // Just delete the cache directory.
-    fs::remove_dir_all(config.cache_dir())?;
+    fs::remove_dir_all(&config.cache_dir)?;
 
     Ok(())
 }
