@@ -11,7 +11,7 @@ use tempfile;
 
 pub const NAME: &str = "build";
 
-type Result = std::result::Result<(), Error>;
+type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
     Io(io::Error),
@@ -129,7 +129,7 @@ fn build(config: config::Config) -> Result {
     cache.save(config.cache_file()).map_err(Error::Cache)?;
 
     // Done.
-    Ok(())
+    Ok(0)
 }
 
 fn check_direnv_version(config: &config::Config) -> std::result::Result<(), String> {

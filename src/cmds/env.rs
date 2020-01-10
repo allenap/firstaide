@@ -9,7 +9,7 @@ pub type Env = Vec<(OsString, OsString)>;
 
 pub const NAME: &str = "env";
 
-type Result = std::result::Result<(), Error>;
+type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
     Io(io::Error),
@@ -59,5 +59,5 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             &env,
         )?,
     };
-    Ok(())
+    Ok(0)
 }

@@ -5,7 +5,7 @@ use std::io;
 
 pub const NAME: &str = "clean";
 
-type Result = std::result::Result<(), Error>;
+type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
     Io(io::Error),
@@ -42,5 +42,5 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     // Just delete the cache directory.
     fs::remove_dir_all(&config.cache_dir)?;
 
-    Ok(())
+    Ok(0)
 }

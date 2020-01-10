@@ -8,7 +8,7 @@ use std::io::{self, Write};
 
 pub const NAME: &str = "hook";
 
-type Result = std::result::Result<(), Error>;
+type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
     Io(io::Error),
@@ -128,7 +128,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
 
     writeln!(&mut handle, "}} # End.")?;
 
-    Ok(())
+    Ok(0)
 }
 
 pub fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {

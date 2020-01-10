@@ -17,6 +17,7 @@ fn main() {
         .author(crate_authors!())
         .about("First, as in prior to, aide.")
         .subcommand(cmds::build::argspec())
+        .subcommand(cmds::status::argspec())
         .subcommand(cmds::clean::argspec())
         .subcommand(cmds::hook::argspec())
         .subcommand(cmds::env::argspec().setting(clap::AppSettings::Hidden))
@@ -24,8 +25,9 @@ fn main() {
         .get_matches();
 
     use error::Error::*;
-    let result: Result<(), error::Error> = match matches.subcommand() {
+    let result: Result<u8, error::Error> = match matches.subcommand() {
         (cmds::build::NAME, Some(submatches)) => cmds::build::run(submatches).map_err(BuildError),
+        (cmds::status::NAME, Some(submatches)) => cmds::status::run(submatches).map_err(StatusError),
         (cmds::clean::NAME, Some(submatches)) => cmds::clean::run(submatches).map_err(CleanError),
         (cmds::hook::NAME, Some(submatches)) => cmds::hook::run(submatches).map_err(HookError),
         (cmds::env::NAME, Some(submatches)) => cmds::env::run(submatches).map_err(EnvError),
@@ -39,8 +41,8 @@ fn main() {
             eprintln!("{}", err);
             process::exit(2);
         }
-        Ok(_) => {
-            process::exit(0);
+        Ok(code) => {
+            process::exit(code as i32);
         }
     };
 }
