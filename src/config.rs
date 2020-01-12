@@ -1,11 +1,15 @@
 use path_absolutize::Absolutize;
+use serde::Deserialize;
 use std::env;
 use std::ffi::OsStr;
+use std::fs;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use toml;
 
+#[derive(Debug)]
 pub struct Config {
     pub build_dir: PathBuf,
     pub cache_dir: PathBuf,
@@ -14,39 +18,55 @@ pub struct Config {
     self_exe: PathBuf,
 }
 
+#[derive(Debug, Deserialize)]
+struct ConfigData {
+    cache_dir: PathBuf,
+    build_exe: PathBuf,
+    watch_exe: PathBuf,
+}
+
 impl Config {
+    // TODO: Switch from `expect` to Result type.
     pub fn new<T: Into<PathBuf>>(dir: Option<T>) -> Self {
         let dir = match dir {
             Some(d) => d.into(),
             None => PathBuf::new(),
         };
-        Config {
-            build_dir: dir
-                .absolutize()
-                .expect("could not calculate absolute path to environment directory"),
 
-            cache_dir: dir
-                .join(".firstaide.dir")
-                .read_link()
-                .expect(concat!(
-                    "could not determine cache directory; please symlink .firstaide.dir ",
-                    "to it (can be dangling symlink; the directory pointed to will be ",
-                    "created)",
-                ))
+        // Find and load a configuration file.
+        let config_file = dir
+            .ancestors()
+            .map(|path| path.join(".firstaide.toml"))
+            .find(|path| path.is_file())
+            .expect("could not find configuration file");
+        let config_bytes: Vec<u8> =
+            fs::read(&config_file).expect("could not read configuration file");
+        let config_data: ConfigData =
+            toml::from_slice(&config_bytes).expect("could not parse configuration file");
+
+        // All paths are resolved relative to the directory where we found the
+        // configuration file.
+        let datum_dir = config_file
+            .parent()
+            .expect("could not get directory of configuration file");
+
+        Config {
+            build_dir: datum_dir.to_path_buf(),
+
+            cache_dir: datum_dir
+                .join(config_data.cache_dir)
                 .absolutize()
                 .expect("could not calculate absolute path to cache directory"),
 
-            build_exe: dir.join(".firstaide.env").canonicalize().expect(concat!(
-                "could not find/resolve .firstaide.env; please create a script ",
-                "called .firstaide.env that will execute its arguments in the ",
-                "target environment",
-            )),
+            build_exe: datum_dir
+                .join(config_data.build_exe)
+                .absolutize()
+                .expect("could not calculate absolute path to build executable"),
 
-            watch_exe: dir.join(".firstaide.watch").canonicalize().expect(concat!(
-                "could not find/resolve .firstaide.watch; please create a script ",
-                "called .firstaide.watch that emits a NUL-delimited list of files ",
-                "to watch for updates",
-            )),
+            watch_exe: datum_dir
+                .join(config_data.watch_exe)
+                .absolutize()
+                .expect("could not calculate absolute path to watch executable"),
 
             self_exe: env::current_exe().expect("could not obtain path to this executable"),
         }
