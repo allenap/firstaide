@@ -2,12 +2,46 @@ use path_absolutize::Absolutize;
 use serde::Deserialize;
 use std::env;
 use std::ffi::OsStr;
+use std::fmt;
 use std::fs;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use toml;
+
+type Result = std::result::Result<Config, Error>;
+
+pub enum Error {
+    Io(io::Error),
+    NotFound(PathBuf),
+    Invalid(toml::de::Error),
+    Other(String),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+        match self {
+            Io(err) => write!(f, "input/output error: {}", err),
+            NotFound(path) => write!(f, "configuration file not found; started from {:?}", path),
+            Invalid(err) => write!(f, "configuration file not valid: {}", err),
+            Other(message) => write!(f, "could not use configuration: {}", message),
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
+    }
+}
+
+impl From<toml::de::Error> for Error {
+    fn from(error: toml::de::Error) -> Self {
+        Error::Invalid(error)
+    }
+}
 
 #[derive(Debug)]
 pub struct Config {
@@ -26,7 +60,37 @@ struct ConfigData {
 }
 
 impl Config {
-    // TODO: Switch from `expect` to Result type.
+    pub fn load<T: Into<PathBuf>>(dir: Option<T>) -> Result {
+        let dir = match dir {
+            Some(d) => d.into().absolutize()?,
+            None => PathBuf::new().absolutize()?,
+        };
+
+        // Find and load a configuration file.
+        let config_file: PathBuf = dir
+            .ancestors()
+            .map(|path| path.join(".firstaide.toml"))
+            .find(|path| path.is_file())
+            .ok_or(Error::NotFound(dir))?;
+        let config_bytes: Vec<u8> = fs::read(&config_file)?;
+        let config_data: ConfigData = toml::from_slice(&config_bytes)?;
+
+        // All paths are resolved relative to the directory where we found the
+        // configuration file.
+        let datum_dir = config_file.parent().ok_or(Error::Other(
+            "could not get directory of configuration file".into(),
+        ))?;
+
+        Ok(Config {
+            build_dir: datum_dir.to_path_buf(),
+            cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
+            build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
+            watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
+            self_exe: env::current_exe()?,
+        })
+    }
+
+    // TODO: Remove this.
     pub fn new<T: Into<PathBuf>>(dir: Option<T>) -> Self {
         let dir = match dir {
             Some(d) => d.into(),
