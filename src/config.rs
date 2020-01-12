@@ -90,52 +90,6 @@ impl Config {
         })
     }
 
-    // TODO: Remove this.
-    pub fn new<T: Into<PathBuf>>(dir: Option<T>) -> Self {
-        let dir = match dir {
-            Some(d) => d.into(),
-            None => PathBuf::new(),
-        };
-
-        // Find and load a configuration file.
-        let config_file = dir
-            .ancestors()
-            .map(|path| path.join(".firstaide.toml"))
-            .find(|path| path.is_file())
-            .expect("could not find configuration file");
-        let config_bytes: Vec<u8> =
-            fs::read(&config_file).expect("could not read configuration file");
-        let config_data: ConfigData =
-            toml::from_slice(&config_bytes).expect("could not parse configuration file");
-
-        // All paths are resolved relative to the directory where we found the
-        // configuration file.
-        let datum_dir = config_file
-            .parent()
-            .expect("could not get directory of configuration file");
-
-        Config {
-            build_dir: datum_dir.to_path_buf(),
-
-            cache_dir: datum_dir
-                .join(config_data.cache_dir)
-                .absolutize()
-                .expect("could not calculate absolute path to cache directory"),
-
-            build_exe: datum_dir
-                .join(config_data.build_exe)
-                .absolutize()
-                .expect("could not calculate absolute path to build executable"),
-
-            watch_exe: datum_dir
-                .join(config_data.watch_exe)
-                .absolutize()
-                .expect("could not calculate absolute path to watch executable"),
-
-            self_exe: env::current_exe().expect("could not obtain path to this executable"),
-        }
-    }
-
     pub fn command_to_allow_direnv(&self) -> Command {
         let mut command = self.command_direnv();
         command.arg("allow").arg("--").arg(&self.build_dir);

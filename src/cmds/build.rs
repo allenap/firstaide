@@ -14,6 +14,7 @@ pub const NAME: &str = "build";
 type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
+    Config(config::Error),
     Io(io::Error),
     DirEnv(String),
     EnvOutsideCapture,
@@ -27,6 +28,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
         match self {
+            Config(err) => write!(f, "{}", err),
             Io(err) => write!(f, "input/output error: {}", err),
             DirEnv(message) => write!(f, "direnv broke: {}", message),
             EnvOutsideCapture => write!(f, "could not capture outside environment"),
@@ -35,6 +37,12 @@ impl fmt::Display for Error {
             EnvInsideDecode(err) => write!(f, "problem decoding inside environment: {}", err),
             Cache(err) => write!(f, "cache could not be saved: {}", err),
         }
+    }
+}
+
+impl From<config::Error> for Error {
+    fn from(error: config::Error) -> Self {
+        Error::Config(error)
     }
 }
 
@@ -55,7 +63,7 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 pub fn run(args: &clap::ArgMatches) -> Result {
-    let config = config::Config::new(args.value_of_os("dir"));
+    let config = config::Config::load(args.value_of_os("dir"))?;
     let spinner = Spinner::new(Spinners::Dots, "".into());
     let result = build(config);
     spinner.stop();

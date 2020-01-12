@@ -8,6 +8,7 @@ pub const NAME: &str = "clean";
 type Result = std::result::Result<u8, Error>;
 
 pub enum Error {
+    Config(config::Error),
     Io(io::Error),
 }
 
@@ -15,8 +16,15 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
         match self {
+            Config(err) => write!(f, "{}", err),
             Io(err) => write!(f, "input/output error: {}", err),
         }
+    }
+}
+
+impl From<config::Error> for Error {
+    fn from(error: config::Error) -> Self {
+        Error::Config(error)
     }
 }
 
@@ -37,7 +45,7 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 pub fn run(args: &clap::ArgMatches) -> Result {
-    let config = config::Config::new(args.value_of_os("dir"));
+    let config = config::Config::load(args.value_of_os("dir"))?;
 
     // Just delete the cache directory.
     fs::remove_dir_all(&config.cache_dir)?;
