@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 
+use fern;
 use std::process;
 
 mod bash;
@@ -13,6 +14,11 @@ mod status;
 mod sums;
 
 fn main() {
+    if let Err(err) = init() {
+        eprintln!("{}", err);
+        process::exit(2);
+    };
+
     let matches = clap::App::new("firstaide")
         .version(crate_version!())
         .author(crate_authors!())
@@ -40,11 +46,31 @@ fn main() {
 
     match result {
         Err(err) => {
-            eprintln!("{}", err);
+            log::error!("{}", err);
             process::exit(2);
         }
         Ok(code) => {
             process::exit(code as i32);
         }
     };
+}
+
+fn init() -> Result<(), log::SetLoggerError> {
+    fern::Dispatch::new()
+        // Perform allocation-free log formatting.
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        // Add blanket level filter.
+        .level(log::LevelFilter::Debug)
+        // Output to stdout.
+        .chain(std::io::stdout())
+        // Apply globally.
+        .apply()
 }
