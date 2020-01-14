@@ -97,10 +97,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     "Cached environment follows:",
                     &env_diff_dump(&cache.diff),
                 ))?;
-                handle.write_all(&chunk(
-                    "Check __monorepo_env.",
-                    include_bytes!("hook/active.check.sh"),
-                ))?;
             } else {
                 handle.write_all(&chunk(
                     &EnvironmentStatus::Stale.display(),
@@ -109,10 +105,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 handle.write_all(&chunk(
                     "Cached environment follows:",
                     &env_diff_dump(&cache.diff),
-                ))?;
-                handle.write_all(&chunk(
-                    "Override __monorepo_env.",
-                    b"export __monorepo_env=active/stale\n",
                 ))?;
             }
             let watches = cache.sums.into_iter().map(|sum| watch(sum.path()));
@@ -125,10 +117,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             handle.write_all(&chunk(
                 &EnvironmentStatus::Unknown.display(),
                 include_bytes!("hook/inactive.sh"),
-            ))?;
-            handle.write_all(&chunk(
-                "Set __monorepo_env.",
-                b"export __monorepo_env=inactive\n",
             ))?;
         }
     };
