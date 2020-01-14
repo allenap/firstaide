@@ -60,9 +60,9 @@ fn init() -> Result<(), log::SetLoggerError> {
         // Perform allocation-free log formatting.
         .format(|out, message, record| {
             out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                record.target(),
+                "{}  {}  {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                // record.target(),
                 record.level(),
                 message
             ))
