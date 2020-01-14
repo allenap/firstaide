@@ -64,10 +64,22 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
 
 pub fn run(args: &clap::ArgMatches) -> Result {
     let config = config::Config::load(args.value_of_os("dir"))?;
-    let spinner = Spinner::new(Spinners::Dots, "".into());
-    let result = build(config);
-    spinner.stop();
-    result
+    build(config)
+}
+
+fn spin<F, T>(f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    if atty::is(atty::Stream::Stdout) {
+        let spinner = Spinner::new(Spinners::Dots, "".into());
+        let result = f();
+        spinner.stop();
+        print!("\x08\x08"); // Backspace over the spinner.
+        result
+    } else {
+        f()
+    }
 }
 
 fn build(config: config::Config) -> Result {
@@ -90,7 +102,7 @@ fn build(config: config::Config) -> Result {
     let temp_path = temp_dir.path().to_owned();
 
     // 3a. Capture outside environment.
-    let env_outside: env::Env = {
+    let env_outside: env::Env = spin(|| {
         let dump_outside_path = temp_path.join("outside");
         let mut dump_outside_proc = config
             .command_to_dump_env_outside(&dump_outside_path)
@@ -99,13 +111,13 @@ fn build(config: config::Config) -> Result {
             return Err(Error::EnvOutsideCapture);
         }
         match bincode::deserialize(&fs::read(dump_outside_path)?) {
-            Ok(env) => env,
-            Err(err) => return Err(Error::EnvOutsideDecode(err)),
+            Ok(env) => Ok(env),
+            Err(err) => Err(Error::EnvOutsideDecode(err)),
         }
-    };
+    })?;
 
     // 3b. Capture inside environment.
-    let env_inside: env::Env = {
+    let env_inside: env::Env = spin(|| {
         let dump_inside_path = temp_path.join("inside");
         let mut dump_inside_proc = config
             .command_to_dump_env_inside(&dump_inside_path, &env_outside)
@@ -114,10 +126,10 @@ fn build(config: config::Config) -> Result {
             return Err(Error::EnvInsideCapture);
         }
         match bincode::deserialize(&fs::read(dump_inside_path)?) {
-            Ok(env) => env,
-            Err(err) => return Err(Error::EnvInsideDecode(err)),
+            Ok(env) => Ok(env),
+            Err(err) => Err(Error::EnvInsideDecode(err)),
         }
-    };
+    })?;
 
     // We're done with the temporary directory.
     drop(temp_path);
@@ -127,7 +139,7 @@ fn build(config: config::Config) -> Result {
     let env_diff = env::diff(&env_outside, &env_inside);
 
     // 5. Calculate checksums.
-    let checksums = sums::Checksums::from(&config.watch_files()?)?;
+    let checksums = spin(|| sums::Checksums::from(&config.watch_files()?))?;
 
     // 6. Write out cache.
     let cache = cache::Cache {
