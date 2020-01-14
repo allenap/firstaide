@@ -106,14 +106,14 @@ fn build(config: config::Config) -> Result {
     // 3a. Capture outside environment.
     log::info!("Capture outside environment.");
     let env_outside: env::Env = spin(|| {
-        let dump_outside_path = temp_path.join("outside");
-        let mut dump_outside_proc = config
-            .command_to_dump_env_outside(&dump_outside_path)
-            .spawn()?;
-        if !dump_outside_proc.wait()?.success() {
+        let dump_path = temp_path.join("outside");
+        let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
+        log::debug!("{:?}", dump_cmd);
+        let mut dump_proc = dump_cmd.spawn()?;
+        if !dump_proc.wait()?.success() {
             return Err(Error::EnvOutsideCapture);
         }
-        match bincode::deserialize(&fs::read(dump_outside_path)?) {
+        match bincode::deserialize(&fs::read(dump_path)?) {
             Ok(env) => Ok(env),
             Err(err) => Err(Error::EnvOutsideDecode(err)),
         }
@@ -122,14 +122,14 @@ fn build(config: config::Config) -> Result {
     // 3b. Capture inside environment.
     log::info!("Capture inside environment (may involve a full build).");
     let env_inside: env::Env = spin(|| {
-        let dump_inside_path = temp_path.join("inside");
-        let mut dump_inside_proc = config
-            .command_to_dump_env_inside(&dump_inside_path, &env_outside)
-            .spawn()?;
-        if !dump_inside_proc.wait()?.success() {
+        let dump_path = temp_path.join("inside");
+        let mut dump_cmd = config.command_to_dump_env_inside(&dump_path, &env_outside);
+        log::debug!("{:?}", dump_cmd);
+        let mut dump_proc = dump_cmd.spawn()?;
+        if !dump_proc.wait()?.success() {
             return Err(Error::EnvInsideCapture);
         }
-        match bincode::deserialize(&fs::read(dump_inside_path)?) {
+        match bincode::deserialize(&fs::read(dump_path)?) {
             Ok(env) => Ok(env),
             Err(err) => Err(Error::EnvInsideDecode(err)),
         }
