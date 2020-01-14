@@ -88,11 +88,13 @@ fn build(config: config::Config) -> Result {
     check_direnv_version(&config).map_err(Error::DirEnv)?;
 
     // 1. Allow `direnv`.
+    log::info!("Allow direnv in {:?}.", &config.build_dir);
     if !config.command_to_allow_direnv().status()?.success() {
         return Err(Error::DirEnv("could not enable direnv".into()));
     }
 
     // 2. Create output directory.
+    log::info!("Create cache dir at {:?}.", &config.cache_dir);
     fs::create_dir_all(&config.cache_dir)?;
 
     // Setting up additional OS pipes for subprocesses to communicate back to us
@@ -102,6 +104,7 @@ fn build(config: config::Config) -> Result {
     let temp_path = temp_dir.path().to_owned();
 
     // 3a. Capture outside environment.
+    log::info!("Capture outside environment.");
     let env_outside: env::Env = spin(|| {
         let dump_outside_path = temp_path.join("outside");
         let mut dump_outside_proc = config
@@ -117,6 +120,7 @@ fn build(config: config::Config) -> Result {
     })?;
 
     // 3b. Capture inside environment.
+    log::info!("Capture inside environment (may involve a full build).");
     let env_inside: env::Env = spin(|| {
         let dump_inside_path = temp_path.join("inside");
         let mut dump_inside_proc = config
@@ -136,12 +140,15 @@ fn build(config: config::Config) -> Result {
     drop(temp_dir);
 
     // 4. Calculate environment diff.
+    log::info!("Calculate environment diff.");
     let env_diff = env::diff(&env_outside, &env_inside);
 
     // 5. Calculate checksums.
+    log::info!("Calculate file checksums.");
     let checksums = spin(|| sums::Checksums::from(&config.watch_files()?))?;
 
     // 6. Write out cache.
+    log::info!("Write out cache.");
     let cache = cache::Cache {
         diff: env_diff,
         sums: checksums,
