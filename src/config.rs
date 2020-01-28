@@ -50,6 +50,7 @@ pub struct Config {
     build_exe: PathBuf,
     watch_exe: PathBuf,
     self_exe: PathBuf,
+    pub messages: ConfigMessages,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +58,21 @@ struct ConfigData {
     cache_dir: PathBuf,
     build_exe: PathBuf,
     watch_exe: PathBuf,
+    #[serde(default)]
+    messages: ConfigMessages,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConfigMessages {
+    pub getting_started: String,
+}
+
+impl Default for ConfigMessages {
+    fn default() -> Self {
+        Self {
+            getting_started: "aide --help".into(),
+        }
+    }
 }
 
 impl Config {
@@ -87,6 +103,7 @@ impl Config {
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
             self_exe: env::current_exe()?,
+            messages: config_data.messages,
         })
     }
 
