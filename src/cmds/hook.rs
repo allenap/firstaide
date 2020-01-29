@@ -3,6 +3,7 @@ use crate::config;
 use crate::env;
 use crate::status::EnvironmentStatus;
 use crate::sums;
+use bstr::ByteSlice;
 use std::ffi::OsString;
 use std::fmt;
 use std::io::{self, Write};
@@ -89,10 +90,10 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         Ok(cache) => {
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
-                handle.write_all(&chunk(
-                    &EnvironmentStatus::Okay.display(),
-                    include_bytes!("hook/active.sh"),
-                ))?;
+                let chunk_message = crate::bash::escape(&config.messages.getting_started);
+                let chunk_content =
+                    include_bytes!("hook/active.sh").replace(b"__MESSAGE__", chunk_message);
+                handle.write_all(&chunk(&EnvironmentStatus::Okay.display(), &chunk_content))?;
                 handle.write_all(&chunk(
                     "Cached environment follows:",
                     &env_diff_dump(&cache.diff),
