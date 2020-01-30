@@ -1,8 +1,61 @@
 # firstaide
 
-_Reviewed last on 2020-01-12_
+_Reviewed last on 2020-01-30_
 
-This is a bootstrapping tool that'll build, cache, and clean your Nix environment.
+This is a bootstrapping tool that'll build, cache, and clean your environment.
+It's intended for use with [direnv][] and [Nix][].
+
+
+## How to use:
+
+Install `firstaide`. For example, if you have [installed Rust][install-rust],
+and cloned this repo somewhere, you can:
+
+```shell
+cargo install --path /path/to/firstaide/repo
+```
+
+In your project, add a `.firstaide.toml` configuration file with at least the
+following settings:
+
+```toml
+cache_dir = "path/to/dir"
+build_exe = "path/to/exe"
+watch_exe = "path/to/exe"
+```
+
+`cache_dir` is a directory, relative to `.firstaide.toml`, where firstaide will
+store its cache and put other files it needs a place for. Calling `firstaide
+clean` will remove this directory, so choose wisely. It's a good idea to add
+this to `.gitignore` too.
+
+`build_exe` is an executable or script that will build your environment. It
+**must** accept as arguments a command to be run within that environment. For
+example, `build_exe` might point to a script like this:
+
+```bash
+#!/usr/bin/env bash
+exec nix-shell --run "$(printf '%q ' "$@")"
+```
+
+`watch_exe` is an executable or script that emits a null-separated list of
+filenames for direnv to watch; firstaide passes these names to direnv's
+`watch_file` function. For example, the following script would ask direnv to
+watch all the files in `etc` and `nix` recursively:
+
+```bash
+#!/usr/bin/env bash
+exec git ls-files -z -- etc nix
+```
+
+Add the following to `.envrc`:
+
+```bash
+eval "$(firstaide hook)"
+```
+
+Then run `firstaide build` (or `firstaide --help`).
+
 
 ## To develop:
 
@@ -15,4 +68,7 @@ cargo run    # Compiles and runs a debug executable.
 # ...
 ```
 
+
 [install-rust]: https://www.rust-lang.org/tools/install
+[direnv]: https://direnv.net/
+[nix]: https://nixos.org/nix/
