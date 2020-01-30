@@ -70,13 +70,11 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     }
 
     fn watch<T: Into<OsString>>(filename: T) -> Vec<u8> {
-        let function: &[u8] = b"watch_file";
         let filename = crate::bash::escape(filename);
-        let mut out = Vec::with_capacity(function.len() + 1 + filename.len() + 1);
-        out.extend(function);
-        out.push(b' ');
+        let mut out = Vec::with_capacity(2 + filename.len() + 3);
+        out.extend(b"  ");
         out.extend(filename);
-        out.push(b'\n');
+        out.extend(b" \\\n");
         out
     }
 
@@ -108,11 +106,15 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     &env_diff_dump(&cache.diff),
                 ))?;
             }
+
             let watches = cache.sums.into_iter().map(|sum| watch(sum.path()));
-            handle.write_all(&chunk(
-                "Watch dependencies.",
-                &watches.flatten().collect::<Vec<u8>>(),
-            ))?;
+            let mut watches_content = Vec::new();
+            watches_content.extend(b"watch_file \\\n");
+            watches_content.extend(&watches.flatten().collect::<Vec<u8>>());
+            watches_content.extend(b"  ");
+            watches_content.extend(crate::bash::escape(config.cache_file()));
+            watches_content.push(b'\n');
+            handle.write_all(&chunk("Watch dependencies.", &watches_content))?;
         }
         Err(_) => {
             handle.write_all(&chunk(
@@ -121,8 +123,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             ))?;
         }
     };
-
-    handle.write_all(&chunk("Watch the cache file.", &watch(config.cache_file())))?;
 
     writeln!(&mut handle, "}} # End.")?;
 
