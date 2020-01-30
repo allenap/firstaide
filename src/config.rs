@@ -50,6 +50,7 @@ pub struct Config {
     build_exe: PathBuf,
     watch_exe: PathBuf,
     self_exe: PathBuf,
+    parent_dir: PathBuf,
     pub messages: ConfigMessages,
 }
 
@@ -59,7 +60,18 @@ struct ConfigData {
     build_exe: PathBuf,
     watch_exe: PathBuf,
     #[serde(default)]
+    parent_dir: ParentDir,
+    #[serde(default)]
     messages: ConfigMessages,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ParentDir(pub PathBuf);
+
+impl Default for ParentDir {
+    fn default() -> Self {
+        Self("..".into())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,6 +114,7 @@ impl Config {
             cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
+            parent_dir: datum_dir.join(config_data.parent_dir.0).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
         })
@@ -125,7 +138,7 @@ impl Config {
         command
             .current_dir(&self.build_dir)
             .arg("exec")
-            .arg(self.abspath(".."))
+            .arg(&self.parent_dir)
             .arg(&self.self_exe)
             .arg("env")
             .arg("--out")

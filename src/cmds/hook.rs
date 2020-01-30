@@ -4,9 +4,12 @@ use crate::env;
 use crate::status::EnvironmentStatus;
 use crate::sums;
 use bstr::ByteSlice;
+use std::env::vars_os;
 use std::ffi::OsString;
 use std::fmt;
+use std::fs;
 use std::io::{self, Write};
+use tempfile;
 
 pub const NAME: &str = "hook";
 
@@ -15,6 +18,8 @@ type Result = std::result::Result<u8, Error>;
 pub enum Error {
     Config(config::Error),
     Io(io::Error),
+    EnvOutsideCapture,
+    EnvOutsideDecode(bincode::Error),
 }
 
 impl fmt::Display for Error {
@@ -23,6 +28,8 @@ impl fmt::Display for Error {
         match self {
             Config(err) => write!(f, "{}", err),
             Io(err) => write!(f, "input/output error: {}", err),
+            EnvOutsideCapture => write!(f, "could not capture outside environment"),
+            EnvOutsideDecode(err) => write!(f, "problem decoding outside environment: {}", err),
         }
     }
 }
@@ -80,11 +87,41 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         out
     }
 
-    handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
+    // Setting up additional OS pipes for subprocesses to communicate back to us
+    // is not well supported in the Rust standard library, so we use files in a
+    // temporary directory instead.
+    let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)?;
+    let temp_path = temp_dir.path().to_owned();
+
+    let env_outside: env::Env = {
+        let dump_path = temp_path.join("outside");
+        let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
+        let mut dump_proc = dump_cmd.spawn()?;
+        if !dump_proc.wait()?.success() {
+            return Err(Error::EnvOutsideCapture);
+        }
+        match bincode::deserialize(&fs::read(dump_path)?) {
+            Ok(env) => Ok(env),
+            Err(err) => Err(Error::EnvOutsideDecode(err)),
+        }
+    }?;
+
+    let env: env::Env = vars_os().collect();
+
+    let mut diff = env::diff(&env, &env_outside).exclude_by_prefix(b"DIRENV_");
+
+    let watches = env_outside.iter().find(|(key, _)| key == "DIRENV_WATCHES");
+
+    if let Some((key, value)) = watches {
+        diff.push(env::Added(key.clone(), value.clone()));
+    }
+
     handle.write_all(&chunk(
-        "Load parent environments.",
-        include_bytes!("hook/parent.sh"),
+        "Parent environment follows:",
+        &env_diff_dump(&diff),
     ))?;
+
+    handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
 
     match cache::Cache::load(config.cache_file()) {
         Ok(cache) => {
