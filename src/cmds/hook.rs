@@ -5,8 +5,11 @@ use crate::env;
 use crate::status::EnvironmentStatus;
 use crate::sums;
 use bstr::ByteSlice;
+use std::env::vars_os;
 use std::fmt;
+use std::fs;
 use std::io::{self, Write};
+use tempfile;
 
 pub const NAME: &str = "hook";
 
@@ -15,6 +18,8 @@ type Result = std::result::Result<u8, Error>;
 pub enum Error {
     Config(config::Error),
     Io(io::Error),
+    EnvOutsideCapture,
+    EnvOutsideDecode(bincode::Error),
 }
 
 impl fmt::Display for Error {
@@ -23,6 +28,8 @@ impl fmt::Display for Error {
         match self {
             Config(err) => write!(f, "{}", err),
             Io(err) => write!(f, "input/output error: {}", err),
+            EnvOutsideCapture => write!(f, "could not capture outside environment"),
+            EnvOutsideDecode(err) => write!(f, "problem decoding outside environment: {}", err),
         }
     }
 }
@@ -70,13 +77,50 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     }
 
     handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
+
+    // Capture the environment here so we can later diff it against the
+    // environment that direnv reports for the configured parent directory.
+    let env_here: env::Env = vars_os().collect();
+    let env_outside: env::Env = {
+        // Setting up additional OS pipes for subprocesses to communicate back
+        // to us is not well supported in the Rust standard library, so we use
+        // files in a temporary directory instead.
+        let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)?;
+        let dump_path = temp_dir.path().join("outside");
+        let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
+        let mut dump_proc = dump_cmd.spawn()?;
+        if !dump_proc.wait()?.success() {
+            return Err(Error::EnvOutsideCapture);
+        }
+        match bincode::deserialize(&fs::read(dump_path)?) {
+            Ok(env) => Ok(env),
+            Err(err) => Err(Error::EnvOutsideDecode(err)),
+        }
+    }?;
+
+    // However, we prevent the parent environment from removing or wiping
+    // DIRENV_WATCHES. This mirrors the behaviour of direnv's `direnv_load`
+    // function; see `direnv stdlib`. We don't use `direnv_load` because it had
+    // a couple of breaking bugs in direnv 2.20.[01].
+    let env_parent_diff = env::diff(&env_here, &env_outside).exclude_by(|change| match change {
+        env::Changed(name, _, value) if name == "DIRENV_WATCHES" && value == "" => true,
+        env::Removed(name, _) if name == "DIRENV_WATCHES" => true,
+        _ => false,
+    });
+
+    // Emit the diff as Bash export and unset commands.
     handle.write_all(&chunk(
-        "Load parent environments.",
-        include_bytes!("hook/parent.sh"),
+        "Setting environment to that of parent:",
+        &env_diff_dump(&env_parent_diff),
     ))?;
 
     match cache::Cache::load(config.cache_file()) {
         Ok(cache) => {
+            // Filter out DIRENV_ and SSH_ vars from cached diff.
+            let env_diff = cache
+                .diff
+                .exclude_by_prefix(b"DIRENV_")
+                .exclude_by_prefix(b"SSH_");
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 let chunk_message = bash::escape(&config.messages.getting_started);
@@ -85,7 +129,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 handle.write_all(&chunk(&EnvironmentStatus::Okay.display(), &chunk_content))?;
                 handle.write_all(&chunk(
                     "Cached environment follows:",
-                    &env_diff_dump(&cache.diff),
+                    &env_diff_dump(&env_diff),
                 ))?;
             } else {
                 handle.write_all(&chunk(
@@ -94,7 +138,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 ))?;
                 handle.write_all(&chunk(
                     "Cached environment follows:",
-                    &env_diff_dump(&cache.diff),
+                    &env_diff_dump(&env_diff),
                 ))?;
             }
             // We want direnv to watch every file for which we calculate a
@@ -126,17 +170,12 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     Ok(0)
 }
 
-pub fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {
+fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {
     use crate::bash::escape as esc;
     use crate::env::Change::*;
 
-    // Filter out DIRENV_ and SSH_ vars.
-    let diff = diff
-        .exclude_by_prefix(b"DIRENV_")
-        .exclude_by_prefix(b"SSH_");
-
     let mut output: Vec<u8> = Vec::new();
-    for change in &diff {
+    for change in diff {
         match change {
             Added(k, vb) => {
                 output.extend(b"export ");

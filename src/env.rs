@@ -12,13 +12,12 @@ pub enum Change {
 }
 
 impl Change {
-    pub fn name(&self) -> OsString {
+    pub fn name<'a>(&'a self) -> &'a OsString {
         match self {
             Added(name, _) => name,
             Changed(name, _, _) => name,
             Removed(name, _) => name,
         }
-        .clone()
     }
 }
 
@@ -45,10 +44,17 @@ impl Diff {
     }
 
     pub fn exclude_by_prefix(&self, prefix: &[u8]) -> Self {
+        self.exclude_by(|change| change.name().as_bytes().starts_with_str(&prefix))
+    }
+
+    pub fn exclude_by<F>(&self, func: F) -> Self
+    where
+        F: Fn(&Change) -> bool,
+    {
         Self(
             self.0
                 .iter()
-                .filter(|change| !change.name().as_bytes().starts_with_str(&prefix))
+                .filter(|change| !func(change))
                 .cloned()
                 .collect(),
         )
