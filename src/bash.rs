@@ -187,7 +187,7 @@ mod tests {
     fn test_lowercase_ascii() {
         assert_eq!(
             escape("abcdefghijklmnopqrstuvwxyz"),
-            "abcdefghijklmnopqrstuvwxyz".as_bytes()
+            b"abcdefghijklmnopqrstuvwxyz"
         );
     }
 
@@ -195,32 +195,32 @@ mod tests {
     fn test_uppercase_ascii() {
         assert_eq!(
             escape("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ".as_bytes()
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         );
     }
 
     #[test]
     fn test_numbers() {
-        assert_eq!(escape("0123456789"), "0123456789".as_bytes());
+        assert_eq!(escape("0123456789"), b"0123456789");
     }
 
     #[test]
     fn test_punctuation() {
-        assert_eq!(escape("-_=/,.+"), "$'-_=/,.+'".as_bytes());
+        assert_eq!(escape("-_=/,.+"), b"$'-_=/,.+'");
     }
 
     #[test]
     fn test_basic_escapes() {
-        assert_eq!(escape(r#"woo"wah""#), r#"$'woo"wah"'"#.as_bytes());
+        assert_eq!(escape(r#"woo"wah""#), br#"$'woo"wah"'"#);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_control_characters() {
-        assert_eq!(escape(&"\x07"), "$'\\a'".as_bytes());
-        assert_eq!(escape(&"\x00"), "$'\\x00'".as_bytes());
-        assert_eq!(escape(&"\x06"), "$'\\x06'".as_bytes());
-        assert_eq!(escape(&"\x7F"), "$'\\x7F'".as_bytes());
+        assert_eq!(escape(&"\x07"), b"$'\\a'");
+        assert_eq!(escape(&"\x00"), b"$'\\x00'");
+        assert_eq!(escape(&"\x06"), b"$'\\x06'");
+        assert_eq!(escape(&"\x7F"), b"$'\\x7F'");
     }
 
     #[test]
