@@ -74,6 +74,12 @@ impl Default for ParentDir {
     }
 }
 
+impl AsRef<Path> for ParentDir {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ConfigMessages {
     pub getting_started: String,
@@ -114,7 +120,7 @@ impl Config {
             cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
-            parent_dir: datum_dir.join(config_data.parent_dir.0).absolutize()?,
+            parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
         })
