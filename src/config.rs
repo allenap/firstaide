@@ -47,8 +47,8 @@ impl From<toml::de::Error> for Error {
 pub struct Config {
     pub build_dir: PathBuf,
     pub cache_dir: PathBuf,
-    build_exe: PathBuf,
-    watch_exe: PathBuf,
+    pub build_exe: PathBuf,
+    pub watch_exe: PathBuf,
     self_exe: PathBuf,
     parent_dir: PathBuf,
     pub messages: ConfigMessages,
@@ -71,6 +71,12 @@ pub struct ParentDir(pub PathBuf);
 impl Default for ParentDir {
     fn default() -> Self {
         Self("..".into())
+    }
+}
+
+impl AsRef<Path> for ParentDir {
+    fn as_ref(&self) -> &Path {
+        &self.0
     }
 }
 
@@ -114,7 +120,7 @@ impl Config {
             cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
-            parent_dir: datum_dir.join(config_data.parent_dir.0).absolutize()?,
+            parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
         })

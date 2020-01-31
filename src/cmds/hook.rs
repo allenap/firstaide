@@ -145,15 +145,20 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             // checksum, AND we want it to watch the firstaide cache file.
             {
                 let mut watches = Vec::with_capacity(8192); // 8kB enough?
-                watches.extend(b"watch_file \\\n");
+                watches.extend(b"watch_file \\\n  ");
                 for watch in cache.sums.into_iter() {
-                    watches.extend(b"  ");
                     bash::escape_into(watch.path(), &mut watches);
-                    watches.extend(b" \\\n");
+                    watches.extend(b" \\\n  ");
                 }
-                watches.extend(b"  ");
-                watches.extend(bash::escape(config.cache_file()));
+                // Also watch the cache file, the build executable, and the
+                // executable we ask for the list of files to watch for changes.
+                bash::escape_into(config.cache_file(), &mut watches);
+                watches.extend(b" \\\n  ");
+                bash::escape_into(&config.build_exe, &mut watches);
+                watches.extend(b" \\\n  ");
+                bash::escape_into(&config.watch_exe, &mut watches);
                 watches.push(b'\n');
+
                 handle.write_all(&chunk("Watch dependencies.", &watches))?;
             }
         }
