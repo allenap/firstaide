@@ -1,3 +1,4 @@
+use crate::bash;
 use crate::cache;
 use crate::config;
 use crate::env;
@@ -5,7 +6,6 @@ use crate::status::EnvironmentStatus;
 use crate::sums;
 use bstr::ByteSlice;
 use std::env::vars_os;
-use std::ffi::OsString;
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
@@ -76,17 +76,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         buf
     }
 
-    fn watch<T: Into<OsString>>(filename: T) -> Vec<u8> {
-        let function: &[u8] = b"watch_file";
-        let filename = crate::bash::escape(filename);
-        let mut out = Vec::with_capacity(function.len() + 1 + filename.len() + 1);
-        out.extend(function);
-        out.push(b' ');
-        out.extend(filename);
-        out.push(b'\n');
-        out
-    }
-
     handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
 
     // Capture the environment here so we can later diff it against the
@@ -134,7 +123,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 .exclude_by_prefix(b"SSH_");
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
-                let chunk_message = crate::bash::escape(&config.messages.getting_started);
+                let chunk_message = bash::escape(&config.messages.getting_started);
                 let chunk_content =
                     include_bytes!("hook/active.sh").replace(b"__MESSAGE__", chunk_message);
                 handle.write_all(&chunk(&EnvironmentStatus::Okay.display(), &chunk_content))?;
@@ -152,11 +141,21 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     &env_diff_dump(&env_diff),
                 ))?;
             }
-            let watches = cache.sums.into_iter().map(|sum| watch(sum.path()));
-            handle.write_all(&chunk(
-                "Watch dependencies.",
-                &watches.flatten().collect::<Vec<u8>>(),
-            ))?;
+            // We want direnv to watch every file for which we calculate a
+            // checksum, AND we want it to watch the firstaide cache file.
+            {
+                let mut watches = Vec::with_capacity(8192); // 8kB enough?
+                watches.extend(b"watch_file \\\n");
+                for watch in cache.sums.into_iter() {
+                    watches.extend(b"  ");
+                    bash::escape_into(watch.path(), &mut watches);
+                    watches.extend(b" \\\n");
+                }
+                watches.extend(b"  ");
+                watches.extend(bash::escape(config.cache_file()));
+                watches.push(b'\n');
+                handle.write_all(&chunk("Watch dependencies.", &watches))?;
+            }
         }
         Err(_) => {
             handle.write_all(&chunk(
@@ -165,8 +164,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             ))?;
         }
     };
-
-    handle.write_all(&chunk("Watch the cache file.", &watch(config.cache_file())))?;
 
     writeln!(&mut handle, "}} # End.")?;
 
