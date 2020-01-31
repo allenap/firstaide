@@ -224,9 +224,16 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_into() {
+    fn test_escape_into_plain() {
         let mut buffer = Vec::new();
         escape_into("hello", &mut buffer);
         assert_eq!(buffer, b"hello");
+    }
+
+    #[test]
+    fn test_escape_into_with_escapes() {
+        let mut buffer = Vec::new();
+        escape_into("-_=/,.+", &mut buffer);
+        assert_eq!(buffer, b"$'-_=/,.+'");
     }
 }
