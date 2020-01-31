@@ -4,21 +4,46 @@ use std::os::unix::ffi::OsStringExt;
 
 pub fn escape<T: Into<OsString>>(s: T) -> Vec<u8> {
     let sin = s.into().into_vec();
-    let esc: Vec<_> = sin.iter().map(EscapeAs::from).collect();
-
-    // An optimisation: if the string only contains "safe" characters we can
-    // return it without escaping anything.
-    if esc.iter().all(EscapeAs::is_literal) {
-        return sin;
+    if let Some(esc) = _prepare(&sin) {
+        // Maybe pointless optimisation, but here we calculate the memory we need to
+        // avoid reallocations as we construct the output string. Since we now know
+        // we're going to use Bash's $'...' string notation, we also add 3 bytes.
+        let size: usize = esc.iter().map(EscapeAs::size).sum();
+        let mut sout = Vec::with_capacity(size + 3);
+        _escape_into(esc, &mut sout); // Do the work.
+        sout
+    } else {
+        sin
     }
+}
 
-    // Maybe pointless optimisation, but here we calculate the memory we need to
-    // avoid reallocations as we construct the output string. Since we now know
-    // we're going to use Bash's $'...' string notation, we also add 3 bytes.
-    let size: usize = esc.iter().map(EscapeAs::size).sum();
-    let mut sout = Vec::with_capacity(size + 3);
+pub fn escape_into<T: Into<OsString>>(s: T, sout: &mut Vec<u8>) {
+    let sin = s.into().into_vec();
+    if let Some(esc) = _prepare(&sin) {
+        // Maybe pointless optimisation, but here we calculate the memory we need to
+        // avoid reallocations as we construct the output string. Since we now know
+        // we're going to use Bash's $'...' string notation, we also add 3 bytes.
+        let size: usize = esc.iter().map(EscapeAs::size).sum();
+        sout.reserve(size + 3);
+        _escape_into(esc, sout); // Do the work.
+    } else {
+        sout.extend(sin);
+    }
+}
 
-    // Construct a Bash-style $'...' escaped string.
+fn _prepare(sin: &Vec<u8>) -> Option<Vec<EscapeAs>> {
+    let esc: Vec<_> = sin.iter().map(EscapeAs::from).collect();
+    // An optimisation: if the string only contains "safe" characters we can
+    // avoid further work.
+    if esc.iter().all(EscapeAs::is_literal) {
+        None
+    } else {
+        Some(esc)
+    }
+}
+
+fn _escape_into(esc: Vec<EscapeAs>, sout: &mut Vec<u8>) {
+    // Push a Bash-style $'...' escaped string into `sout`.
     sout.extend(b"$'");
     for mode in esc {
         use EscapeAs::*;
@@ -39,7 +64,6 @@ pub fn escape<T: Into<OsString>>(s: T) -> Vec<u8> {
         }
     }
     sout.push(b'\'');
-    sout
 }
 
 //
@@ -157,12 +181,13 @@ const ESC: u8 = 0x1B; // -> \e
 #[cfg(test)]
 mod tests {
     use super::escape;
+    use super::escape_into;
 
     #[test]
     fn test_lowercase_ascii() {
         assert_eq!(
             escape("abcdefghijklmnopqrstuvwxyz"),
-            "abcdefghijklmnopqrstuvwxyz".as_bytes()
+            b"abcdefghijklmnopqrstuvwxyz"
         );
     }
 
@@ -170,31 +195,45 @@ mod tests {
     fn test_uppercase_ascii() {
         assert_eq!(
             escape("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ".as_bytes()
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         );
     }
 
     #[test]
     fn test_numbers() {
-        assert_eq!(escape("0123456789"), "0123456789".as_bytes());
+        assert_eq!(escape("0123456789"), b"0123456789");
     }
 
     #[test]
     fn test_punctuation() {
-        assert_eq!(escape("-_=/,.+"), "$'-_=/,.+'".as_bytes());
+        assert_eq!(escape("-_=/,.+"), b"$'-_=/,.+'");
     }
 
     #[test]
     fn test_basic_escapes() {
-        assert_eq!(escape(r#"woo"wah""#), r#"$'woo"wah"'"#.as_bytes());
+        assert_eq!(escape(r#"woo"wah""#), br#"$'woo"wah"'"#);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_control_characters() {
-        assert_eq!(escape(&"\x07"), "$'\\a'".as_bytes());
-        assert_eq!(escape(&"\x00"), "$'\\x00'".as_bytes());
-        assert_eq!(escape(&"\x06"), "$'\\x06'".as_bytes());
-        assert_eq!(escape(&"\x7F"), "$'\\x7F'".as_bytes());
+        assert_eq!(escape(&"\x07"), b"$'\\a'");
+        assert_eq!(escape(&"\x00"), b"$'\\x00'");
+        assert_eq!(escape(&"\x06"), b"$'\\x06'");
+        assert_eq!(escape(&"\x7F"), b"$'\\x7F'");
+    }
+
+    #[test]
+    fn test_escape_into_plain() {
+        let mut buffer = Vec::new();
+        escape_into("hello", &mut buffer);
+        assert_eq!(buffer, b"hello");
+    }
+
+    #[test]
+    fn test_escape_into_with_escapes() {
+        let mut buffer = Vec::new();
+        escape_into("-_=/,.+", &mut buffer);
+        assert_eq!(buffer, b"$'-_=/,.+'");
     }
 }
