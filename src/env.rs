@@ -12,13 +12,12 @@ pub enum Change {
 }
 
 impl Change {
-    pub fn name(&self) -> OsString {
+    pub fn name<'a>(&'a self) -> &'a OsString {
         match self {
             Added(name, _) => name,
             Changed(name, _, _) => name,
             Removed(name, _) => name,
         }
-        .clone()
     }
 }
 
