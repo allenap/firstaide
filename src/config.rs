@@ -47,8 +47,8 @@ impl From<toml::de::Error> for Error {
 pub struct Config {
     pub build_dir: PathBuf,
     pub cache_dir: PathBuf,
-    build_exe: PathBuf,
-    watch_exe: PathBuf,
+    pub build_exe: PathBuf,
+    pub watch_exe: PathBuf,
     self_exe: PathBuf,
     parent_dir: PathBuf,
     pub messages: ConfigMessages,
