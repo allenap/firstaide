@@ -49,9 +49,9 @@ pub struct Config {
     pub cache_dir: PathBuf,
     pub build_exe: PathBuf,
     pub watch_exe: PathBuf,
-    self_exe: PathBuf,
-    parent_dir: PathBuf,
-    pub messages: ConfigMessages,
+    pub self_exe: PathBuf,
+    pub parent_dir: PathBuf,
+    pub messages: Messages,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,7 +62,7 @@ struct ConfigData {
     #[serde(default)]
     parent_dir: ParentDir,
     #[serde(default)]
-    messages: ConfigMessages,
+    messages: Messages,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,11 +81,11 @@ impl AsRef<Path> for ParentDir {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ConfigMessages {
+pub struct Messages {
     pub getting_started: String,
 }
 
-impl Default for ConfigMessages {
+impl Default for Messages {
     fn default() -> Self {
         Self {
             getting_started: "aide --help".into(),
