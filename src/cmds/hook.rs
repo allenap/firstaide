@@ -58,25 +58,6 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
 
 pub fn run(args: &clap::ArgMatches) -> Result {
     let config = config::Config::load(args.value_of_os("dir"))?;
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
-
-    // Wrap everything in { ... } so that it's only evaluated by Bash once
-    // completely written out. This is for correctness, but it might also help
-    // prevent seeing broken pipe errors.
-    writeln!(&mut handle, "{{ # Start.")?;
-    writeln!(&mut handle)?;
-
-    fn chunk(title: &str, chunk: &[u8]) -> Vec<u8> {
-        let mut buf = Vec::new();
-        let comments = title.lines().map(|line| format!("### {}\n", line));
-        buf.extend(comments.map(String::into_bytes).flatten());
-        buf.extend(chunk);
-        buf.push(b'\n');
-        buf
-    }
-
-    handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
 
     // Capture the environment here so we can later diff it against the
     // environment that direnv reports for the configured parent directory.
@@ -112,6 +93,27 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         env::Removed(name, _) if name == "DIRENV_WATCHES" => true,
         _ => false,
     });
+
+    // Prepare to write to stdout.
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
+    // Wrap everything in { ... } so that it's only evaluated by Bash once
+    // completely written out. This is for correctness, but it might also help
+    // prevent seeing broken pipe errors.
+    writeln!(&mut handle, "{{ # Start.")?;
+    writeln!(&mut handle)?;
+
+    fn chunk(title: &str, chunk: &[u8]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let comments = title.lines().map(|line| format!("### {}\n", line));
+        buf.extend(comments.map(String::into_bytes).flatten());
+        buf.extend(chunk);
+        buf.push(b'\n');
+        buf
+    }
+
+    handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
 
     match cache::Cache::load(config.cache_file()) {
         Ok(cache) => {
