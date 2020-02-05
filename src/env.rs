@@ -1,6 +1,7 @@
 use bstr::ByteSlice;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::hash_map::HashMap;
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStrExt;
 
@@ -37,6 +38,10 @@ impl Diff {
 
     pub fn push(&mut self, change: Change) {
         self.0.push(change);
+    }
+
+    pub fn extend(&mut self, diff: Diff) {
+        self.0.extend(diff.0);
     }
 
     pub fn iter(&self) -> DiffIter {
@@ -201,6 +206,22 @@ mod tests {
             ]),
             diff(&ea, &eb)
         );
+    }
+
+    #[test]
+    fn can_push_into_diff() {
+        let mut d = Diff::new();
+        d.push(added("ALICE", "alice"));
+        assert_eq!(Diff::from(&[added("ALICE", "alice"),]), d,);
+    }
+
+    #[test]
+    fn can_extend_diff() {
+        let mut da = Diff::from(&[added("ALICE", "alice")]);
+        let db = Diff::from(&[added("BOB", "bob")]);
+        da.extend(db);
+        let expected = Diff::from(&[added("ALICE", "alice"), added("BOB", "bob")]);
+        assert_eq!(expected, da);
     }
 
     #[test]
