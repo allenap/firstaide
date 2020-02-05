@@ -107,25 +107,23 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     // DIRENV_WATCHES. This mirrors the behaviour of direnv's `direnv_load`
     // function; see `direnv stdlib`. We don't use `direnv_load` because it had
     // a couple of breaking bugs in direnv 2.20.[01].
-    let env_parent_diff = env::diff(&env_here, &env_outside).exclude_by(|change| match change {
+    let mut env_diff = env::diff(&env_here, &env_outside).exclude_by(|change| match change {
         env::Changed(name, _, value) if name == "DIRENV_WATCHES" && value == "" => true,
         env::Removed(name, _) if name == "DIRENV_WATCHES" => true,
         _ => false,
     });
 
-    // Emit the diff as Bash export and unset commands.
-    handle.write_all(&chunk(
-        "Setting environment to that of parent:",
-        &env_diff_dump(&env_parent_diff),
-    ))?;
-
     match cache::Cache::load(config.cache_file()) {
         Ok(cache) => {
-            // Filter out DIRENV_ and SSH_ vars from cached diff.
-            let env_diff = cache
-                .diff
-                .exclude_by_prefix(b"DIRENV_")
-                .exclude_by_prefix(b"SSH_");
+            // Filter out DIRENV_ and SSH_ vars from cached diff, then use it to
+            // extend the parent's environment diff.
+            env_diff.extend(
+                cache
+                    .diff
+                    .exclude_by_prefix(b"DIRENV_")
+                    .exclude_by_prefix(b"SSH_"),
+            );
+            env_diff.simplify();
             let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 let chunk_message = bash::escape(&config.messages.getting_started);
@@ -133,7 +131,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     include_bytes!("hook/active.sh").replace(b"__MESSAGE__", chunk_message);
                 handle.write_all(&chunk(&EnvironmentStatus::Okay.display(), &chunk_content))?;
                 handle.write_all(&chunk(
-                    "Cached environment follows:",
+                    "Computed environment follows (includes parent environment):",
                     &env_diff_dump(&env_diff),
                 ))?;
             } else {
@@ -142,7 +140,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     include_bytes!("hook/stale.sh"),
                 ))?;
                 handle.write_all(&chunk(
-                    "Cached environment follows:",
+                    "Computed environment follows (includes parent environment):",
                     &env_diff_dump(&env_diff),
                 ))?;
             }
@@ -171,6 +169,10 @@ pub fn run(args: &clap::ArgMatches) -> Result {
             handle.write_all(&chunk(
                 &EnvironmentStatus::Unknown.display(),
                 include_bytes!("hook/inactive.sh"),
+            ))?;
+            handle.write_all(&chunk(
+                "Parent environment follows:",
+                &env_diff_dump(&env_diff),
             ))?;
         }
     };
