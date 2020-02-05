@@ -179,6 +179,16 @@ pub fn run(args: &clap::ArgMatches) -> Result {
         }
     };
 
+    // Write out a nix.conf in some situations.
+    //
+    // NIX_CONF_DIR   nix_conf_dir   What to do?
+    // <unset>        <unset>        Nothing
+    // <unset>        /some/thing    Write new nix.conf, include /etc/nix/nix.conf, then /some/thing.
+    // /some/thing    <unset>        Nothing
+    // /some/thing1   /some/thing2   Write new nix.conf, include /some/thing1, then /some/thing2.
+
+
+
     writeln!(&mut handle, "}} # End.")?;
 
     Ok(0)
