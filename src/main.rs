@@ -4,7 +4,6 @@ extern crate clap;
 use fern;
 use std::process;
 
-mod bash;
 mod cache;
 mod cmds;
 mod config;

@@ -1,10 +1,10 @@
-use crate::bash;
 use crate::cache;
 use crate::config;
 use crate::env;
 use crate::status::EnvironmentStatus;
 use crate::sums;
 use bstr::ByteSlice;
+use shell_quote::bash;
 use std::env::vars_os;
 use std::fmt;
 use std::fs;
@@ -185,8 +185,8 @@ pub fn run(args: &clap::ArgMatches) -> Result {
 }
 
 fn env_diff_dump(diff: &env::Diff) -> Vec<u8> {
-    use crate::bash::escape as esc;
-    use crate::env::Change::*;
+    use bash::escape as esc;
+    use env::Change::*;
 
     let mut output: Vec<u8> = Vec::new();
     for change in diff {
