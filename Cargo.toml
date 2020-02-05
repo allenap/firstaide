@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 atty = "0.2.14"
 bincode = "1.2.1"
-bstr = "0.2.10"
+bstr = "0.2.11"
 chrono = "0.4.10"
 clap = "2.33.0"
 crypto-hash = "0.3.4"
