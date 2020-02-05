@@ -84,8 +84,13 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     let env_outside: env::Env = {
         // Setting up additional OS pipes for subprocesses to communicate back
         // to us is not well supported in the Rust standard library, so we use
-        // files in a temporary directory instead.
-        let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)?;
+        // files in a temporary directory instead. Here we try to create the
+        // temporary directory in a preexisting cache directory, but fall back
+        // to using the system's temporary directory, since we don't want to
+        // write to the filesystem in the project directory until the user has
+        // specifically requested it (by calling `firstaide build` for example).
+        let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)
+            .or_else(|_err| tempfile::TempDir::new())?;
         let dump_path = temp_dir.path().join("outside");
         let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
         let mut dump_proc = dump_cmd.spawn()?;
