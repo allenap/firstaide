@@ -229,3 +229,27 @@ fn expand_path<T: Into<PathBuf>>(path: T, home: &Path) -> PathBuf {
         _ => path,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expands_path_with_leading_tilde() {
+        assert_eq!(pb("/home/dir/baz"), expand_path("~/baz", &pb("/home/dir")),);
+    }
+
+    #[test]
+    fn does_not_expand_path_with_leading_tilde_and_username() {
+        assert_eq!(pb("~user/baz"), expand_path("~user/baz", &pb("/home/dir")),);
+    }
+
+    #[test]
+    fn does_not_expand_path_without_leading_tilde() {
+        assert_eq!(pb("some/where"), expand_path("some/where", &pb("/home/dir")),);
+    }
+
+    fn pb<T: Into<PathBuf>>(path: T) -> PathBuf {
+        path.into()
+    }
+}
