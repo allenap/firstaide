@@ -14,7 +14,8 @@ type Result = std::result::Result<Config, Error>;
 
 pub enum Error {
     Io(io::Error),
-    NotFound(PathBuf),
+    ConfigNotFound(PathBuf),
+    DirenvNotFound,
     Invalid(toml::de::Error),
     Other(String),
 }
@@ -24,7 +25,8 @@ impl fmt::Display for Error {
         use Error::*;
         match self {
             Io(err) => write!(f, "input/output error: {}", err),
-            NotFound(path) => write!(f, "configuration file not found; started from {:?}", path),
+            ConfigNotFound(path) => write!(f, "config file not found; started from {:?}", path),
+            DirenvNotFound => write!(f, "direnv not found on PATH"),
             Invalid(err) => write!(f, "configuration file not valid: {}", err),
             Other(message) => write!(f, "could not use configuration: {}", message),
         }
@@ -49,8 +51,9 @@ pub struct Config {
     pub cache_dir: PathBuf,
     pub build_exe: PathBuf,
     pub watch_exe: PathBuf,
-    pub self_exe: PathBuf,
+    pub direnv_exe: PathBuf,
     pub parent_dir: PathBuf,
+    pub self_exe: PathBuf,
     pub messages: Messages,
 }
 
@@ -105,7 +108,7 @@ impl Config {
             .ancestors()
             .map(|path| path.join(".firstaide.toml"))
             .find(|path| path.is_file())
-            .ok_or(Error::NotFound(dir))?;
+            .ok_or(Error::ConfigNotFound(dir))?;
         let config_bytes: Vec<u8> = fs::read(&config_file)?;
         let config_data: ConfigData = toml::from_slice(&config_bytes)?;
 
@@ -120,6 +123,7 @@ impl Config {
             cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
+            direnv_exe: search_path("direnv").ok_or(Error::DirenvNotFound)?,
             parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
@@ -196,10 +200,32 @@ impl Config {
     }
 
     pub fn command_direnv(&self) -> Command {
-        Command::new("direnv")
+        Command::new(&self.direnv_exe)
     }
 
     pub fn cache_file(&self) -> PathBuf {
         self.cache_dir.join("cache")
+    }
+}
+
+fn search_path<T: Into<PathBuf>>(name: T) -> Option<PathBuf> {
+    let name = name.into();
+    let home = dirs::home_dir().unwrap_or("/home/not/found".into());
+    let path = env::var_os("PATH").unwrap_or_default();
+    env::split_paths(&path)
+        .map(|path| expand_path(path, &home))
+        .map(|path| path.join(&name))
+        .find(|qpath| qpath.is_file())
+}
+
+fn expand_path<T: Into<PathBuf>>(path: T, home: &Path) -> PathBuf {
+    use std::path::Component::Normal;
+
+    let path = path.into();
+    let tilde = OsStr::new("~");
+    let mut components = path.components();
+    match components.next() {
+        Some(Normal(part)) if part == tilde => home.join(components),
+        _ => path,
     }
 }
