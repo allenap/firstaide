@@ -68,8 +68,8 @@ fn init() -> Result<(), log::SetLoggerError> {
         })
         // Add blanket level filter.
         .level(log::LevelFilter::Debug)
-        // Output to stdout.
-        .chain(std::io::stdout())
+        // Output to stderr.
+        .chain(std::io::stderr())
         // Apply globally.
         .apply()
 }
