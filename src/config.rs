@@ -96,10 +96,6 @@ impl Default for Messages {
     }
 }
 
-// A path to the `direnv` binary can be compiled in. This allows a Nix store
-// path to be passed in when firstaide is installed via a Nix derivation.
-const DIRENV_EXE: Option<&'static str> = option_env!("firstaideDirenvExe");
-
 impl Config {
     pub fn load<T: Into<PathBuf>>(dir: Option<T>) -> Result {
         let dir = match dir {
@@ -122,18 +118,12 @@ impl Config {
             "could not get directory of configuration file".into(),
         ))?;
 
-        let direnv_exe = DIRENV_EXE
-            .map(|path| Path::new(path).to_path_buf())
-            .filter(|path| path.is_file())
-            .or_else(|| search_path("direnv"))
-            .ok_or(Error::DirenvNotFound)?;
-
         Ok(Config {
             build_dir: datum_dir.to_path_buf(),
             cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
-            direnv_exe: direnv_exe,
+            direnv_exe: search_path("direnv").ok_or(Error::DirenvNotFound)?,
             parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
