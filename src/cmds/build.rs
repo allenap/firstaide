@@ -160,7 +160,7 @@ fn build(config: config::Config) -> Result {
 }
 
 fn check_direnv_version(config: &config::Config) -> std::result::Result<(), String> {
-    let version_min = semver::Version::new(2, 20, 1);
+    let version_min = semver::Version::new(2, 21, 2);
     let mut command = config.command_direnv();
     command.arg("version");
     let command_output = command.output().map_err(|err| format!("{}", err))?;
@@ -168,10 +168,17 @@ fn check_direnv_version(config: &config::Config) -> std::result::Result<(), Stri
     let version = semver::Version::parse(&version_string)
         .map_err(|err| format!("could not parse version {:?}: {}", version_string, err))?;
     if version < version_min {
-        Err(format!(
-            "direnv is too old ({}); upgrade to {} or later (hint: use `nix-env -i direnv`)",
-            version, version_min,
-        ))
+        Err(
+            format!(
+                concat!(
+                    "direnv is too old ({}); upgrade to {} or later.\n",
+                    "--> Nix: nix-channel --update && nix-env --install direnv && nix-env --upgrade direnv\n",
+                    "--> Homebrew: brew update && brew install direnv && brew upgrade direnv",
+                ),
+                version,
+                version_min,
+            )
+        )
     } else {
         Ok(())
     }
