@@ -3,10 +3,12 @@ use crate::config;
 use crate::env;
 use crate::sums;
 use bincode;
+use bstr::ByteSlice;
 use spinners::{Spinner, Spinners};
 use std::fmt;
 use std::fs;
 use std::io;
+use std::process;
 use tempfile;
 
 pub const NAME: &str = "build";
@@ -134,6 +136,65 @@ fn build(config: config::Config) -> Result {
             Err(err) => Err(Error::EnvInsideDecode(err)),
         }
     })?;
+
+    // 3c. Capture the environment's closure to prevent GC.
+    // nix-build --no-out-link stuff.nix | xargs -r nix-store -qR | \
+    //   xargs -r nix-store --realise --add-root _build/firstaide/gc/$random --indirect
+    // log::info!("Capture closure of inside environment to prevent GC.");
+    // let gcroot_dir = &config.cache_dir.join("gc");
+    // fs::create_dir(gcroot_dir)?;
+    // let gcroot_output = process::Command::new("nix-build")
+    //     .current_dir(&config.build_dir)
+    //     .arg("--no-out-link")
+    //     .arg("stuff.nix")
+    //     .stdin(process::Stdio::null())
+    //     .stdout(process::Stdio::piped())
+    //     .stderr(process::Stdio::inherit())
+    //     .output()?;
+    // let gcroot_inputs: Vec<&[u8]> = gcroot_output.stdout.fields().collect();
+
+    // Another approach?
+    //   nix-instantiate shell.nix --add-root gc/shell --indirect
+    //   nix-store -r gc/shell --add-root gc/root --indirect
+
+
+    // An approach that seems to work:  *** DO THIS ONE ***
+    //   nix-instantiate shell.nix --add-root _build/firstaide/shell --indirect
+    //   nix-shell _build/firstaide/shell --run 'firstaide env ...'
+    //   ALSO: Check that user has `keep-outputs` enabled. <-- IMPORTANT
+
+    // 3c. Add a GC root for this environment. This alone is not enough to
+    // ensure that the environment and its constituents are not garbage
+    // collected – Nix does *not* make this easy – but if we also check if users
+    // have `keep-outputs` enabled in their configuration then we're fairly
+    // close: Nix will only think it needs to GC a couple of dozen packages.
+
+    log::info!("Capture closure of inside environment to prevent GC.");
+    let gcroot_dir = &config.cache_dir.join("gc");
+    fs::create_dir(gcroot_dir)?;
+    let gcroot_output = process::Command::new("nix-build")
+        .current_dir(&config.build_dir)
+        .arg("--no-out-link")
+        .arg("stuff.nix")
+        .stdin(process::Stdio::null())
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::inherit())
+        .output()?;
+    let gcroot_inputs: Vec<&[u8]> = gcroot_output.stdout.fields().collect();
+
+
+    // let gcroot_dir = tempfile::TempDir::new_in(
+    // let gcroot_path = temp_path.join("inside");
+    // let mut dump_cmd = config.command_to_dump_env_inside(&dump_path, &env_outside);
+    // log::debug!("{:?}", dump_cmd);
+    // let mut dump_proc = dump_cmd.spawn()?;
+    // if !dump_proc.wait()?.success() {
+    //     return Err(Error::EnvInsideCapture);
+    // }
+    // match bincode::deserialize(&fs::read(dump_path)?) {
+    //     Ok(env) => Ok(env),
+    //     Err(err) => Err(Error::EnvInsideDecode(err)),
+    // }
 
     // We're done with the temporary directory.
     drop(temp_path);
