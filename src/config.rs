@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn does_not_expand_path_without_leading_tilde() {
-        assert_eq!(pb("some/where"), expand_path("some/where", &pb("/home/dir")),);
+        assert_eq!(pb("sum/were"), expand_path("sum/were", &pb("/home/dir")),);
     }
 
     fn pb<T: Into<PathBuf>>(path: T) -> PathBuf {
