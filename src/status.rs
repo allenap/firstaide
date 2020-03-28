@@ -10,7 +10,7 @@ impl fmt::Display for EnvironmentStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use EnvironmentStatus::*;
         match self {
-            Okay => write!(f, "Environment is up-to-date!"),
+            Okay => write!(f, "Environment is up to date!"),
             Stale => write!(f, "Environment is STALE!"),
             Unknown => write!(f, "Environment not built or otherwise broken!"),
         }

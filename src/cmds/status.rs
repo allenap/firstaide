@@ -41,7 +41,7 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
         .about("Reports the status of the development environment")
         .long_about(concat!(
             "Reports the status of the development environment.\n",
-            "- Exits 0 when the environment is up-to-date.\n",
+            "- Exits 0 when the environment is up to date.\n",
             "- Exits 1 when the environment is stale.\n",
             "- Exits 2 when the environment is unbuilt, or when an error occurs.",
         ))
