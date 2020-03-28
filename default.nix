@@ -12,7 +12,7 @@ let
 
 in rustPlatform.buildRustPackage rec {
   pname = "firstaide";
-  version = "0.1.4";
+  version = "0.1.5";
   src = gitignoreSource ./.;
 
   # The crypto_hash crate needs the openssl-sys crate (directly or indirectly,
@@ -23,7 +23,7 @@ in rustPlatform.buildRustPackage rec {
   checkPhase = "";
 
   # I think this refers to the current state of the crates.io repo.
-  cargoSha256 = "072kprdizhr1hc3fvwnmzywhhnghq6cy1vhc9j8h3k27larav93m";
+  cargoSha256 = "1766w77b582c6j2qgqbfy652nxr90kgqw72fdwyd8mb3wjxxi35p";
 
   meta = with stdenv.lib; {
     description = "Bootstrap Nix environments.";
