@@ -12,7 +12,7 @@ let
 
 in rustPlatform.buildRustPackage rec {
   pname = "firstaide";
-  version = "0.1.2";
+  version = "0.1.3";
   src = gitignoreSource ./.;
 
   # The crypto_hash crate needs the openssl-sys crate (directly or indirectly,
