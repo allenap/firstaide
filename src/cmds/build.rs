@@ -7,6 +7,7 @@ use spinners::{Spinner, Spinners};
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
+use std::os::unix;
 use std::time::UNIX_EPOCH;
 use tempfile;
 
@@ -136,10 +137,6 @@ fn build(config: config::Config) -> Result {
         }
     })?;
 
-    // We're done with the temporary directory.
-    drop(temp_path);
-    drop(temp_dir);
-
     // 4. Calculate environment diff.
     log::info!("Calculate environment diff.");
     let env_diff = env::diff(&env_outside, &env_inside);
@@ -157,7 +154,17 @@ fn build(config: config::Config) -> Result {
     };
     cache.save(&cache_file).map_err(Error::Cache)?;
 
-    // 7. Write to the build log. This may be a useful record, but, since we
+    // 7. Update the most recent cache file link.
+    log::info!("Update most recent cache file link.");
+    {
+        // Write a new symlink into the temporary directory.
+        let cache_file_link = temp_path.join("cache");
+        unix::fs::symlink(&cache_file, &cache_file_link)?;
+        // Atomically replace any existing symlink with the new one.
+        fs::rename(&cache_file_link, &config.cache_file_most_recent())?
+    }
+
+    // 8. Write to the build log. This may be a useful record, but, since we
     // also arrange for direnv to watch this log, it's actually here to prompt
     // direnv to reload. Previously we relied upon getting direnv to watch the
     // cache file, but the cache file is now named with a checksum suffix, so it

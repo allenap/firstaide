@@ -117,8 +117,9 @@ pub fn run(args: &clap::ArgMatches) -> Result {
 
     let sums_now = sums::Checksums::from(&config.watch_files()?)?;
     let cache_file = config.cache_file(&sums_now);
+    let cache_file_fallback = config.cache_file_most_recent();
 
-    match cache::Cache::load(&cache_file) {
+    match cache::Cache::load_with_fallback(&cache_file, &cache_file_fallback) {
         Ok(cache) => {
             // Filter out DIRENV_ and SSH_ vars from cached diff, then use it to
             // extend the parent's environment diff.

@@ -59,8 +59,9 @@ pub fn run(args: &clap::ArgMatches) -> Result {
 
     let sums_now = sums::Checksums::from(&config.watch_files()?)?;
     let cache_file = config.cache_file(&sums_now);
+    let cache_file_fallback = config.cache_file_most_recent();
 
-    let status = match cache::Cache::load(&cache_file) {
+    let status = match cache::Cache::load_with_fallback(&cache_file, &cache_file_fallback) {
         Ok(cache) => {
             if sums::equal(&sums_now, &cache.sums) {
                 EnvironmentStatus::Okay
