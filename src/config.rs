@@ -210,6 +210,10 @@ impl Config {
         self.cache_dir.join(format!("cache.{}", sums.sig()))
     }
 
+    pub fn cache_file_most_recent(&self) -> PathBuf {
+        self.cache_dir.join("cache")
+    }
+
     pub fn build_log_file(&self) -> PathBuf {
         self.cache_dir.join("build.log")
     }
