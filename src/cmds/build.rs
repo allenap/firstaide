@@ -6,7 +6,8 @@ use bincode;
 use spinners::{Spinner, Spinners};
 use std::fmt;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
+use std::time::UNIX_EPOCH;
 use tempfile;
 
 pub const NAME: &str = "build";
@@ -155,6 +156,26 @@ fn build(config: config::Config) -> Result {
         sums: checksums,
     };
     cache.save(&cache_file).map_err(Error::Cache)?;
+
+    // 7. Write to the build log. This may be a useful record, but, since we
+    // also arrange for direnv to watch this log, it's actually here to prompt
+    // direnv to reload. Previously we relied upon getting direnv to watch the
+    // cache file, but the cache file is now named with a checksum suffix, so it
+    // doesn't notice it.
+    {
+        let mut build_log = fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&config.build_log_file())?;
+        let build_time = UNIX_EPOCH.elapsed().map_or(0, |d| d.as_secs());
+        writeln!(
+            &mut build_log,
+            "{:010} {}",
+            &build_time,
+            &cache_file.display()
+        )?;
+        build_log.sync_all()?;
+    }
 
     // Done.
     Ok(0)

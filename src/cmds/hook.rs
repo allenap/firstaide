@@ -157,9 +157,11 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     bash::escape_into(watch.path(), &mut watches);
                     watches.extend(b" \\\n  ");
                 }
-                // Also watch the cache file, the build executable, and the
-                // executable we ask for the list of files to watch for changes.
+                // Also watch the cache file, the build log, the build
+                // executable, and the watch executable.
                 bash::escape_into(&cache_file, &mut watches);
+                watches.extend(b" \\\n  ");
+                bash::escape_into(&config.build_log_file(), &mut watches);
                 watches.extend(b" \\\n  ");
                 bash::escape_into(&config.build_exe, &mut watches);
                 watches.extend(b" \\\n  ");

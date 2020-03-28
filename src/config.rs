@@ -209,6 +209,10 @@ impl Config {
     pub fn cache_file(&self, sums: &sums::Checksums) -> PathBuf {
         self.cache_dir.join(format!("cache.{}", sums.sig()))
     }
+
+    pub fn build_log_file(&self) -> PathBuf {
+        self.cache_dir.join("build.log")
+    }
 }
 
 fn search_path<T: Into<PathBuf>>(name: T) -> Option<PathBuf> {
