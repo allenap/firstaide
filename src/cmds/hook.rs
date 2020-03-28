@@ -115,7 +115,10 @@ pub fn run(args: &clap::ArgMatches) -> Result {
 
     handle.write_all(&chunk("Helpers.", include_bytes!("hook/helpers.sh")))?;
 
-    match cache::Cache::load(config.cache_file()) {
+    let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+    let cache_file = config.cache_file(&sums_now);
+
+    match cache::Cache::load(&cache_file) {
         Ok(cache) => {
             // Filter out DIRENV_ and SSH_ vars from cached diff, then use it to
             // extend the parent's environment diff.
@@ -126,7 +129,6 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                     .exclude_by_prefix(b"SSH_"),
             );
             env_diff.simplify();
-            let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 let chunk_message = bash::escape(&config.messages.getting_started);
                 let chunk_content =
@@ -157,7 +159,7 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 }
                 // Also watch the cache file, the build executable, and the
                 // executable we ask for the list of files to watch for changes.
-                bash::escape_into(config.cache_file(), &mut watches);
+                bash::escape_into(&cache_file, &mut watches);
                 watches.extend(b" \\\n  ");
                 bash::escape_into(&config.build_exe, &mut watches);
                 watches.extend(b" \\\n  ");

@@ -57,9 +57,11 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let status = match cache::Cache::load(config.cache_file()) {
+    let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+    let cache_file = config.cache_file(&sums_now);
+
+    let status = match cache::Cache::load(&cache_file) {
         Ok(cache) => {
-            let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 EnvironmentStatus::Okay
             } else {

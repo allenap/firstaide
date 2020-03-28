@@ -1,5 +1,3 @@
-use path_absolutize::Absolutize;
-use serde::Deserialize;
 use std::env;
 use std::ffi::OsStr;
 use std::fmt;
@@ -8,7 +6,12 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use path_absolutize::Absolutize;
+use serde::Deserialize;
 use toml;
+
+use crate::sums;
 
 type Result = std::result::Result<Config, Error>;
 
@@ -203,8 +206,8 @@ impl Config {
         Command::new(&self.direnv_exe)
     }
 
-    pub fn cache_file(&self) -> PathBuf {
-        self.cache_dir.join("cache")
+    pub fn cache_file(&self, sums: &sums::Checksums) -> PathBuf {
+        self.cache_dir.join(format!("cache.{}", sums.sig()))
     }
 }
 

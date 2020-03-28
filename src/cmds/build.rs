@@ -146,6 +146,7 @@ fn build(config: config::Config) -> Result {
     // 5. Calculate checksums.
     log::info!("Calculate file checksums.");
     let checksums = spin(|| sums::Checksums::from(&config.watch_files()?))?;
+    let cache_file = config.cache_file(&checksums);
 
     // 6. Write out cache.
     log::info!("Write out cache.");
@@ -153,7 +154,7 @@ fn build(config: config::Config) -> Result {
         diff: env_diff,
         sums: checksums,
     };
-    cache.save(config.cache_file()).map_err(Error::Cache)?;
+    cache.save(&cache_file).map_err(Error::Cache)?;
 
     // Done.
     Ok(0)
