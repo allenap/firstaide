@@ -8,7 +8,6 @@ use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::os::unix;
-use std::time::UNIX_EPOCH;
 use tempfile;
 
 pub const NAME: &str = "build";
@@ -174,11 +173,11 @@ fn build(config: config::Config) -> Result {
             .append(true)
             .create(true)
             .open(&config.build_log_file())?;
-        let build_time = UNIX_EPOCH.elapsed().map_or(0, |d| d.as_secs());
+        let build_time = chrono::offset::Local::now();
         writeln!(
             &mut build_log,
-            "{:010} {}",
-            &build_time,
+            "{}  {}",
+            &build_time.format("%+"),
             &cache_file.display()
         )?;
         build_log.sync_all()?;
