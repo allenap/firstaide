@@ -41,7 +41,7 @@ pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
         .about("Reports the status of the development environment")
         .long_about(concat!(
             "Reports the status of the development environment.\n",
-            "- Exits 0 when the environment is up-to-date.\n",
+            "- Exits 0 when the environment is up to date.\n",
             "- Exits 1 when the environment is stale.\n",
             "- Exits 2 when the environment is unbuilt, or when an error occurs.",
         ))
@@ -57,9 +57,11 @@ pub fn run(args: &clap::ArgMatches) -> Result {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    let status = match cache::Cache::load(config.cache_file()) {
+    let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+    let cache_file = config.cache_file(&sums_now);
+
+    let status = match cache::Cache::load(&cache_file) {
         Ok(cache) => {
-            let sums_now = sums::Checksums::from(&config.watch_files()?)?;
             if sums::equal(&sums_now, &cache.sums) {
                 EnvironmentStatus::Okay
             } else {

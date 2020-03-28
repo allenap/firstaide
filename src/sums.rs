@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use bincode;
 
 #[derive(Serialize, Deserialize)]
 pub struct Checksums(Vec<Checksum>);
@@ -18,6 +19,12 @@ impl Checksums {
             sums.push(sum);
         }
         Ok(Self(sums))
+    }
+
+    pub fn sig(&self) -> String {
+        // Default bincode config is unlimited so should not error, hence
+        // unwrapping is safe.
+        hex_digest(Algorithm::SHA1, &bincode::serialize(self).unwrap())
     }
 }
 
