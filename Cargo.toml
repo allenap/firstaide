@@ -3,8 +3,14 @@ name = "firstaide"
 version = "0.1.1"
 authors = ["Gavin Panella <gavinpanella@gmail.com>"]
 edition = "2018"
+description = "Bootstrap and cache Nix environments; works with direnv."
+readme = "README.md"
+repository = "https://github.com/allenap/firstaide"
+license = "Apache-2.0"
+categories = ["command-line-utilities"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[badges]
+travis-ci = { repository = "allenap/firstaide", branch = "master" }
 
 [dependencies]
 atty = "0.2.14"
