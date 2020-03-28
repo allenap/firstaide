@@ -23,7 +23,7 @@ in rustPlatform.buildRustPackage rec {
   checkPhase = "";
 
   # I think this refers to the current state of the crates.io repo.
-  cargoSha256 = "0rfkp3ka4apyd0smvalpqg90x02hdpih90qb6l0n9x5pdzpkjb7a";
+  cargoSha256 = "1h1y5jnmq2461r0r3npnqc7i031j7xrds5jsx2382n1918pp2vbn";
 
   meta = with stdenv.lib; {
     description = "Bootstrap Nix environments.";

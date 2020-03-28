@@ -79,6 +79,8 @@ cargo run    # Compiles and runs a debug executable.
 1. Bump version in [`Cargo.toml`](Cargo.toml) and [`default.nix`](default.nix).
 2. Build **and** test: `cargo build && cargo test`. The latter on its own does
    do a build, but a test build can hide warnings about dead code, so do both.
-3. Commit with message "Bump version to `$VERSION`."
-4. Tag with "v`$VERSION`", e.g. `git tag v1.0.10`.
-5. Push: `git push --tags`.
+3. Run `nix-build` to ensure that the package builds. The `cargoSha256` value
+   may need to be updated, for example.
+4. Commit with message "Bump version to `$VERSION`."
+5. Tag with "v`$VERSION`", e.g. `git tag v1.0.10`.
+6. Push: `git push && git push --tags`.
