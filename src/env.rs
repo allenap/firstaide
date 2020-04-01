@@ -13,7 +13,7 @@ pub enum Change {
 }
 
 impl Change {
-    pub fn name<'a>(&'a self) -> &'a OsString {
+    pub fn name(&self) -> &OsString {
         match self {
             Added(name, _) => name,
             Changed(name, _, _) => name,
