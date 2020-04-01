@@ -117,9 +117,8 @@ impl Config {
 
         // All paths are resolved relative to the directory where we found the
         // configuration file.
-        let datum_dir = config_file.parent().ok_or(Error::Other(
-            "could not get directory of configuration file".into(),
-        ))?;
+        let datum_dir = (config_file.parent())
+            .ok_or_else(|| Error::Other("could not get directory of configuration file".into()))?;
 
         Ok(Config {
             build_dir: datum_dir.to_path_buf(),
@@ -221,7 +220,7 @@ impl Config {
 
 fn search_path<T: Into<PathBuf>>(name: T) -> Option<PathBuf> {
     let name = name.into();
-    let home = dirs::home_dir().unwrap_or("/home/not/found".into());
+    let home = dirs::home_dir().unwrap_or_else(|| "/home/not/found".into());
     let path = env::var_os("PATH").unwrap_or_default();
     env::split_paths(&path)
         .map(|path| expand_path(path, &home))
