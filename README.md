@@ -1,6 +1,6 @@
 # firstaide
 
-_Reviewed last on 2020-01-30_
+[![Build Status](https://travis-ci.com/allenap/firstaide.svg?branch=master)](https://travis-ci.com/allenap/firstaide)
 
 This is a bootstrapping tool that'll build, cache, and clean your environment.
 It's intended for use with [direnv][] and [Nix][].
