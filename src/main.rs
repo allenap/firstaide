@@ -9,6 +9,7 @@ mod cmds;
 mod config;
 mod env;
 mod error;
+mod nix;
 mod status;
 mod sums;
 

@@ -55,6 +55,7 @@ pub struct Config {
     pub build_exe: PathBuf,
     pub watch_exe: PathBuf,
     pub direnv_exe: PathBuf,
+    pub nix_conf_dir: PathBuf,
     pub parent_dir: PathBuf,
     pub self_exe: PathBuf,
     pub messages: Messages,
@@ -66,9 +67,30 @@ struct ConfigData {
     build_exe: PathBuf,
     watch_exe: PathBuf,
     #[serde(default)]
+    nix_conf_dir: NixConfDir,
+    #[serde(default)]
     parent_dir: ParentDir,
     #[serde(default)]
     messages: Messages,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NixConfDir(pub PathBuf);
+
+impl Default for NixConfDir {
+    fn default() -> Self {
+        // From nix.conf(5): this is the "system-wide configuration file
+        // sysconfdir/nix/nix.conf". However,it doesn't seem possible or at
+        // least obvious how to find out what Nix's notion of `sysconfdir` is,
+        // so we assume it's /etc for now.
+        Self("/etc/nix".into())
+    }
+}
+
+impl AsRef<Path> for NixConfDir {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,6 +148,7 @@ impl Config {
             build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
             watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
             direnv_exe: search_path("direnv").ok_or(Error::DirenvNotFound)?,
+            nix_conf_dir: datum_dir.join(config_data.nix_conf_dir).absolutize()?,
             parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
             self_exe: env::current_exe()?,
             messages: config_data.messages,
