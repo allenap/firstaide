@@ -134,7 +134,7 @@ impl Config {
 
     pub fn command_to_allow_direnv(&self) -> Command {
         let mut command = self.command_direnv();
-        command.arg("allow").arg("--").arg(&self.build_dir);
+        command.arg("allow").arg(&self.build_dir);
         command
     }
 
