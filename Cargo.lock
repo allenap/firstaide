@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "firstaide"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "atty 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "bincode 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
