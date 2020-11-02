@@ -13,7 +13,7 @@ in rustPlatform.buildRustPackage rec {
   buildInputs = [ openssl pkg-config ];
 
   # Don't run tests when building.
-  checkPhase = "";
+  doCheck = false;
 
   # I think this refers to the current state of the crates.io repo. To update,
   # replace the hash with all 0's and Nix will give you the right value to
