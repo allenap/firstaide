@@ -5,7 +5,7 @@ let
   gitignore = import sources.gitignore { };
 in rustPlatform.buildRustPackage rec {
   pname = "firstaide";
-  version = "0.1.5";
+  version = "0.1.6";
   src = gitignore.gitignoreSource ./.;
 
   # The crypto_hash crate needs the openssl-sys crate (directly or indirectly,
