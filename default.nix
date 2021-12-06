@@ -1,4 +1,5 @@
-{ pkgs ? import <nixpkgs> { }, ... }:
+{ sources ? import ./nix/sources.nix { }, pkgs ? import sources.nixpkgs { }, ...
+}:
 with pkgs;
 let
   sources = import ./nix/sources.nix;
@@ -20,7 +21,7 @@ in rustPlatform.buildRustPackage rec {
   # stick in here.
   cargoSha256 = "1766w77b582c6j2qgqbfy652nxr90kgqw72fdwyd8mb3wjxxi35p";
 
-  meta = with stdenv.lib; {
+  meta = with pkgs.lib; {
     description = "Bootstrap Nix environments.";
     homepage = "https://github.com/allenap/firstaide";
     license = with licenses; [ asl20 ];
