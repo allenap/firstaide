@@ -19,7 +19,7 @@ in rustPlatform.buildRustPackage rec {
   # I think this refers to the current state of the crates.io repo. To update,
   # replace the hash with all 0's and Nix will give you the right value to
   # stick in here.
-  cargoSha256 = "1766w77b582c6j2qgqbfy652nxr90kgqw72fdwyd8mb3wjxxi35p";
+  cargoSha256 = "0si3fwfyxinlf3ccc9l4jv0k0f9bn2200b0f9hhvz47w9zln2hlp";
 
   meta = with pkgs.lib; {
     description = "Bootstrap Nix environments.";
