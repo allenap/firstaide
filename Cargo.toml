@@ -15,7 +15,7 @@ travis-ci = { repository = "allenap/firstaide", branch = "master" }
 [dependencies]
 atty = "0.2.14"
 bincode = "1.2.1"
-bstr = "0.2.11"
+bstr = "0.2.17"
 chrono = "0.4.19"
 clap = "2.33.0"
 crypto-hash = "0.3.4"
