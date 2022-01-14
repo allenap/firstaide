@@ -106,7 +106,7 @@ impl Config {
             .ancestors()
             .map(|path| path.join(".firstaide.toml"))
             .find(|path| path.is_file())
-            .ok_or(Error::ConfigNotFound(dir.to_path_buf()))?;
+            .ok_or_else(|| Error::ConfigNotFound(dir.to_path_buf()))?;
         let config_bytes: Vec<u8> = fs::read(&config_file)?;
         let config_data: ConfigData = toml::from_slice(&config_bytes)?;
 
