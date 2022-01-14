@@ -11,5 +11,6 @@ in pkgs.mkShell {
     pkgs.cargo-edit # for `cargo upgrade`
     pkgs.libiconv
     pkgs.rustc
+    pkgs.rustfmt
   ];
 }
