@@ -131,20 +131,16 @@ pub fn run(args: &clap::ArgMatches) -> Result {
                 let chunk_content =
                     include_bytes!("hook/active.sh").replace(b"__MESSAGE__", chunk_message);
                 handle.write_all(&chunk(&EnvironmentStatus::Okay.display(), &chunk_content))?;
-                handle.write_all(&chunk(
-                    "Computed environment follows (includes parent environment):",
-                    &env_diff_dump(&env_diff),
-                ))?;
             } else {
                 handle.write_all(&chunk(
                     &EnvironmentStatus::Stale.display(),
                     include_bytes!("hook/stale.sh"),
                 ))?;
-                handle.write_all(&chunk(
-                    "Computed environment follows (includes parent environment):",
-                    &env_diff_dump(&env_diff),
-                ))?;
             }
+            handle.write_all(&chunk(
+                "Computed environment follows (includes parent environment):",
+                &env_diff_dump(&env_diff),
+            ))?;
             // We want direnv to watch every file for which we calculate a
             // checksum, AND we want it to watch the firstaide cache file.
             {
