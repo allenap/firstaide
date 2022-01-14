@@ -6,32 +6,28 @@ use crate::sums;
 use bstr::ByteSlice;
 use shell_quote::bash;
 use std::env::vars_os;
-use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use tempfile;
+use thiserror::Error;
 
 pub const NAME: &str = "hook";
 
 type Result = std::result::Result<u8, Error>;
 
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
     Config(config::Error),
-    Io(io::Error),
-    EnvOutsideCapture,
-    EnvOutsideDecode(bincode::Error),
-}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
-        match self {
-            Config(err) => write!(f, "{}", err),
-            Io(err) => write!(f, "input/output error: {}", err),
-            EnvOutsideCapture => write!(f, "could not capture outside environment"),
-            EnvOutsideDecode(err) => write!(f, "problem decoding outside environment: {}", err),
-        }
-    }
+    #[error("input/output error: {0}")]
+    Io(io::Error),
+
+    #[error("could not capture outside environment")]
+    EnvOutsideCapture,
+
+    #[error("problem decoding outside environment: {0}")]
+    EnvOutsideDecode(bincode::Error),
 }
 
 impl From<config::Error> for Error {

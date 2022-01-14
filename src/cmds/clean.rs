@@ -1,25 +1,19 @@
 use crate::config;
-use std::fmt;
 use std::fs;
 use std::io;
+use thiserror::Error;
 
 pub const NAME: &str = "clean";
 
 type Result = std::result::Result<u8, Error>;
 
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error(transparent)]
     Config(config::Error),
-    Io(io::Error),
-}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
-        match self {
-            Config(err) => write!(f, "{}", err),
-            Io(err) => write!(f, "input/output error: {}", err),
-        }
-    }
+    #[error("input/output error: {0}")]
+    Io(io::Error),
 }
 
 impl From<config::Error> for Error {

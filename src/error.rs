@@ -1,26 +1,23 @@
 use crate::cmds;
-use std::fmt;
+use thiserror::Error;
 
-pub use Error::*;
-
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("command not found: {0}")]
     CommandNotFound(String),
-    BuildError(cmds::build::Error),
-    StatusError(cmds::status::Error),
-    CleanError(cmds::clean::Error),
-    HookError(cmds::hook::Error),
-    EnvError(cmds::env::Error),
-}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CommandNotFound(message) => write!(f, "command not found: {}", message),
-            BuildError(err) => write!(f, "build failed: {}", err),
-            StatusError(err) => write!(f, "status failed: {}", err),
-            CleanError(err) => write!(f, "clean failed: {}", err),
-            HookError(err) => write!(f, "hook failed: {}", err),
-            EnvError(err) => write!(f, "env failed: {}", err),
-        }
-    }
+    #[error("build failed: {0}")]
+    BuildError(cmds::build::Error),
+
+    #[error("status failed: {0}")]
+    StatusError(cmds::status::Error),
+
+    #[error("clean failed: {0}")]
+    CleanError(cmds::clean::Error),
+
+    #[error("hook failed: {0}")]
+    HookError(cmds::hook::Error),
+
+    #[error("env failed: {0}")]
+    EnvError(cmds::env::Error),
 }

@@ -4,41 +4,41 @@ use crate::env;
 use crate::sums;
 use bincode;
 use spinners::{Spinner, Spinners};
-use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::os::unix;
 use tempfile;
+use thiserror::Error;
 
 pub const NAME: &str = "build";
 
 type Result = std::result::Result<u8, Error>;
 
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
     Config(config::Error),
-    Io(io::Error),
-    DirEnv(String),
-    EnvOutsideCapture,
-    EnvOutsideDecode(bincode::Error),
-    EnvInsideCapture,
-    EnvInsideDecode(bincode::Error),
-    Cache(bincode::Error),
-}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
-        match self {
-            Config(err) => write!(f, "{}", err),
-            Io(err) => write!(f, "input/output error: {}", err),
-            DirEnv(message) => write!(f, "direnv broke: {}", message),
-            EnvOutsideCapture => write!(f, "could not capture outside environment"),
-            EnvOutsideDecode(err) => write!(f, "problem decoding outside environment: {}", err),
-            EnvInsideCapture => write!(f, "could not capture inside environment"),
-            EnvInsideDecode(err) => write!(f, "problem decoding inside environment: {}", err),
-            Cache(err) => write!(f, "cache could not be saved: {}", err),
-        }
-    }
+    #[error("input/output error: {0}")]
+    Io(io::Error),
+
+    #[error("direnv broke: {0}")]
+    DirEnv(String),
+
+    #[error("could not capture outside environment")]
+    EnvOutsideCapture,
+
+    #[error("problem decoding outside environment: {0}")]
+    EnvOutsideDecode(bincode::Error),
+
+    #[error("could not capture inside environment")]
+    EnvInsideCapture,
+
+    #[error("problem decoding inside environment: {0}")]
+    EnvInsideDecode(bincode::Error),
+
+    #[error("cache could not be saved")]
+    Cache(bincode::Error),
 }
 
 impl From<config::Error> for Error {
