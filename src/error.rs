@@ -7,17 +7,17 @@ pub enum Error {
     CommandNotFound(String),
 
     #[error("build failed: {0}")]
-    BuildError(cmds::build::Error),
+    Build(cmds::build::Error),
 
     #[error("status failed: {0}")]
-    StatusError(cmds::status::Error),
+    Status(cmds::status::Error),
 
     #[error("clean failed: {0}")]
-    CleanError(cmds::clean::Error),
+    Clean(cmds::clean::Error),
 
     #[error("hook failed: {0}")]
-    HookError(cmds::hook::Error),
+    Hook(cmds::hook::Error),
 
     #[error("env failed: {0}")]
-    EnvError(cmds::env::Error),
+    Env(cmds::env::Error),
 }

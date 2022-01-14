@@ -1,4 +1,3 @@
-
 use std::process;
 
 mod cache;
@@ -58,11 +57,11 @@ fn main() {
 
     use error::Error::*;
     let result: Result<u8, error::Error> = match matches.subcommand() {
-        Some((cmds::build::NAME, subm)) => cmds::build::run(subm).map_err(BuildError),
-        Some((cmds::status::NAME, subm)) => cmds::status::run(subm).map_err(StatusError),
-        Some((cmds::clean::NAME, subm)) => cmds::clean::run(subm).map_err(CleanError),
-        Some((cmds::hook::NAME, subm)) => cmds::hook::run(subm).map_err(HookError),
-        Some((cmds::env::NAME, subm)) => cmds::env::run(subm).map_err(EnvError),
+        Some((cmds::build::NAME, subm)) => cmds::build::run(subm).map_err(Build),
+        Some((cmds::status::NAME, subm)) => cmds::status::run(subm).map_err(Status),
+        Some((cmds::clean::NAME, subm)) => cmds::clean::run(subm).map_err(Clean),
+        Some((cmds::hook::NAME, subm)) => cmds::hook::run(subm).map_err(Hook),
+        Some((cmds::env::NAME, subm)) => cmds::env::run(subm).map_err(Env),
         // This last branch should not be taken while `SubcommandRequired` is in
         // effect, but Rust insists that we cater for it, so we do.
         Some((name, _)) => Err(CommandNotFound(name.into())),
