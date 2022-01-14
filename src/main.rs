@@ -1,4 +1,4 @@
-use fern;
+
 use std::process;
 
 mod cache;

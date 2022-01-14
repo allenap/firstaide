@@ -1,4 +1,4 @@
-use bincode;
+
 use crypto_hash::{hex_digest, Algorithm};
 use serde::{Deserialize, Serialize};
 use std::fs;

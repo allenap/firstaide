@@ -9,7 +9,7 @@ use std::process::Command;
 
 use path_absolutize::Absolutize;
 use serde::Deserialize;
-use toml;
+
 
 use crate::sums;
 
@@ -136,7 +136,7 @@ impl Config {
                 .to_path_buf(),
             direnv_exe: search_path("direnv")
                 .ok_or(Error::DirenvNotFound)?
-                .to_path_buf(),
+                ,
             parent_dir: datum_dir
                 .join(config_data.parent_dir)
                 .absolutize()?
