@@ -16,7 +16,7 @@ type Result = std::result::Result<Config, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("input/output error: {0}")]
-    Io(io::Error),
+    Io(#[from] io::Error),
 
     #[error("config file not found; started from {}", .0.display())]
     ConfigNotFound(PathBuf),
@@ -25,22 +25,10 @@ pub enum Error {
     DirenvNotFound,
 
     #[error("configuration file not valid: {0}")]
-    Invalid(toml::de::Error),
+    Invalid(#[from] toml::de::Error),
 
     #[error("couuld not use configuration: {0}")]
     Other(String),
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Error::Io(error)
-    }
-}
-
-impl From<toml::de::Error> for Error {
-    fn from(error: toml::de::Error) -> Self {
-        Error::Invalid(error)
-    }
 }
 
 #[derive(Debug)]

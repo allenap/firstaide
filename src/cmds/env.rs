@@ -14,22 +14,10 @@ type Result = std::result::Result<u8, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("input/output error: {0}")]
-    Io(io::Error),
+    Io(#[from] io::Error),
 
     #[error("could not encode environment: {0}")]
-    Encode(bincode::Error),
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Error::Io(error)
-    }
-}
-
-impl From<bincode::Error> for Error {
-    fn from(error: bincode::Error) -> Self {
-        Error::Encode(error)
-    }
+    Encode(#[from] bincode::Error),
 }
 
 pub fn argspec<'a>() -> clap::App<'a> {

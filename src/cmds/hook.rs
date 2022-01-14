@@ -18,28 +18,16 @@ type Result = std::result::Result<u8, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Config(config::Error),
+    Config(#[from] config::Error),
 
     #[error("input/output error: {0}")]
-    Io(io::Error),
+    Io(#[from] io::Error),
 
     #[error("could not capture outside environment")]
     EnvOutsideCapture,
 
     #[error("problem decoding outside environment: {0}")]
     EnvOutsideDecode(bincode::Error),
-}
-
-impl From<config::Error> for Error {
-    fn from(error: config::Error) -> Self {
-        Error::Config(error)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Error::Io(error)
-    }
 }
 
 pub fn argspec<'a>() -> clap::App<'a> {
