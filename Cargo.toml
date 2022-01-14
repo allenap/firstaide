@@ -22,7 +22,7 @@ crypto-hash = "0.3.4"
 dirs = "4.0.0"
 fern = "0.6.0"
 log = "0.4.14"
-path-absolutize = "1.1.7"
+path-absolutize = "3.0.11"
 semver = "1.0.4"
 serde = { version = "1.0.133", features = ["derive"] }
 shell-quote = "0.1.0"

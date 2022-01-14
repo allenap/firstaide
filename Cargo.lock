@@ -352,21 +352,20 @@ dependencies = [
 
 [[package]]
 name = "path-absolutize"
-version = "1.2.1"
+version = "3.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ceeedc827d9a758b4641457683ced2f02d4252cc1bd8794c415ed20256114290"
+checksum = "b288298a7a3a7b42539e3181ba590d32f2d91237b0691ed5f103875c754b3bf5"
 dependencies = [
  "path-dedot",
- "slash-formatter",
 ]
 
 [[package]]
 name = "path-dedot"
-version = "1.2.4"
+version = "3.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45c58ab1edb03f77d0bb3f08e4a179dd43ce9bc8eab9867ec53a78285ea3039b"
+checksum = "4bfa72956f6be8524f7f7e2b07972dda393cb0008a6df4451f658b7e1bd1af80"
 dependencies = [
- "lazy_static",
+ "once_cell",
 ]
 
 [[package]]
@@ -458,12 +457,6 @@ name = "shell-quote"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fb975283e6af8d3d691ddcefdca3a4dffe369167746d22fd993205e1e0c0de0"
-
-[[package]]
-name = "slash-formatter"
-version = "2.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f7fb98e76e2022054673f3ebc43a4e12890ec6272530629df6237cafbb70569"
 
 [[package]]
 name = "spinner"

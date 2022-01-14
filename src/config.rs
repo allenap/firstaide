@@ -102,8 +102,8 @@ impl Default for Messages {
 impl Config {
     pub fn load<T: Into<PathBuf>>(dir: Option<T>) -> Result {
         let dir = match dir {
-            Some(d) => d.into().absolutize()?,
-            None => PathBuf::new().absolutize()?,
+            Some(d) => d.into().absolutize()?.to_path_buf(),
+            None => PathBuf::new().absolutize()?.to_path_buf(),
         };
 
         // Find and load a configuration file.
@@ -111,7 +111,7 @@ impl Config {
             .ancestors()
             .map(|path| path.join(".firstaide.toml"))
             .find(|path| path.is_file())
-            .ok_or(Error::ConfigNotFound(dir))?;
+            .ok_or(Error::ConfigNotFound(dir.to_path_buf()))?;
         let config_bytes: Vec<u8> = fs::read(&config_file)?;
         let config_data: ConfigData = toml::from_slice(&config_bytes)?;
 
@@ -122,11 +122,25 @@ impl Config {
 
         Ok(Config {
             build_dir: datum_dir.to_path_buf(),
-            cache_dir: datum_dir.join(config_data.cache_dir).absolutize()?,
-            build_exe: datum_dir.join(config_data.build_exe).absolutize()?,
-            watch_exe: datum_dir.join(config_data.watch_exe).absolutize()?,
-            direnv_exe: search_path("direnv").ok_or(Error::DirenvNotFound)?,
-            parent_dir: datum_dir.join(config_data.parent_dir).absolutize()?,
+            cache_dir: datum_dir
+                .join(config_data.cache_dir)
+                .absolutize()?
+                .to_path_buf(),
+            build_exe: datum_dir
+                .join(config_data.build_exe)
+                .absolutize()?
+                .to_path_buf(),
+            watch_exe: datum_dir
+                .join(config_data.watch_exe)
+                .absolutize()?
+                .to_path_buf(),
+            direnv_exe: search_path("direnv")
+                .ok_or(Error::DirenvNotFound)?
+                .to_path_buf(),
+            parent_dir: datum_dir
+                .join(config_data.parent_dir)
+                .absolutize()?
+                .to_path_buf(),
             self_exe: env::current_exe()?,
             messages: config_data.messages,
         })
