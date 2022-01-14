@@ -73,7 +73,7 @@ where
     F: FnOnce() -> T,
 {
     if atty::is(atty::Stream::Stdout) {
-        let spinner = Spinner::new(Spinners::Dots, "".into());
+        let spinner = Spinner::new(&Spinners::Dots, "".into());
         let result = f();
         spinner.stop();
         print!("\x08\x08"); // Backspace over the spinner.
