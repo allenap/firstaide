@@ -1,13 +1,13 @@
 use bincode;
+use clap::Parser;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
+use std::path::PathBuf;
 use thiserror::Error;
 
 pub type Env = Vec<(OsString, OsString)>;
-
-pub const NAME: &str = "env";
 
 type Result = std::result::Result<u8, Error>;
 
@@ -20,24 +20,24 @@ pub enum Error {
     Encode(#[from] bincode::Error),
 }
 
-pub fn argspec<'a>() -> clap::App<'a> {
-    clap::App::new(NAME).about("Serialize the environment").arg(
-        clap::Arg::new("out")
-            .short('o')
-            .long("out")
-            .value_name("OUT")
-            .help("Where to dump the environment; defaults to stdout"),
-    )
+/// Serialize the environment
+#[derive(Debug, Parser)]
+pub struct Command {
+    /// Where to dump the environment; defaults to stdout;
+    #[clap(long, short)]
+    out: Option<PathBuf>,
 }
 
-pub fn run(args: &clap::ArgMatches) -> Result {
-    let env: Env = env::vars_os().collect();
-    match args.value_of_os("out") {
-        None => bincode::serialize_into(io::stdout().lock(), &env)?,
-        Some(out) => bincode::serialize_into(
-            fs::OpenOptions::new().write(true).create(true).open(&out)?,
-            &env,
-        )?,
-    };
-    Ok(0)
+impl Command {
+    pub fn run(&self) -> Result {
+        let env: Env = env::vars_os().collect();
+        match &self.out {
+            None => bincode::serialize_into(io::stdout().lock(), &env)?,
+            Some(out) => bincode::serialize_into(
+                fs::OpenOptions::new().write(true).create(true).open(&out)?,
+                &env,
+            )?,
+        };
+        Ok(0)
+    }
 }

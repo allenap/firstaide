@@ -3,9 +3,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("command not found: {0}")]
-    CommandNotFound(String),
-
     #[error("build failed: {0}")]
     Build(cmds::build::Error),
 

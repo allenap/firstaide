@@ -2,10 +2,10 @@ use crate::cache;
 use crate::config;
 use crate::status::EnvironmentStatus;
 use crate::sums;
+use clap::Parser;
 use std::io::{self, Write};
+use std::path::PathBuf;
 use thiserror::Error;
-
-pub const NAME: &str = "status";
 
 type Result = std::result::Result<u8, Error>;
 
@@ -18,42 +18,38 @@ pub enum Error {
     Io(#[from] io::Error),
 }
 
-pub fn argspec<'a>() -> clap::App<'a> {
-    clap::App::new(NAME)
-        .about("Reports the status of the development environment")
-        .long_about(concat!(
-            "Reports the status of the development environment.\n",
-            "- Exits 0 when the environment is up to date.\n",
-            "- Exits 1 when the environment is stale.\n",
-            "- Exits 2 when the environment is unbuilt, or when an error occurs.",
-        ))
-        .arg(
-            clap::Arg::new("dir")
-                .value_name("DIR")
-                .help("The directory in which to build"),
-        )
+/// Reports the status of the development environment
+///
+/// Exits 0 when the environment is up to date, 1 when the environment is stale,
+/// and 2 when the environment is unbuilt, or when an error occurs.
+#[derive(Debug, Parser)]
+pub struct Command {
+    /// The directory in which to build
+    dir: Option<PathBuf>,
 }
 
-pub fn run(args: &clap::ArgMatches) -> Result {
-    let config = config::Config::load(args.value_of_os("dir"))?;
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
+impl Command {
+    pub fn run(&self) -> Result {
+        let config = config::Config::load(self.dir.as_ref())?;
+        let stdout = io::stdout();
+        let mut handle = stdout.lock();
 
-    let sums_now = sums::Checksums::from(&config.watch_files()?)?;
-    let cache_file = config.cache_file(&sums_now);
-    let cache_file_fallback = config.cache_file_most_recent();
+        let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+        let cache_file = config.cache_file(&sums_now);
+        let cache_file_fallback = config.cache_file_most_recent();
 
-    let status = match cache::Cache::load_with_fallback(&cache_file, &cache_file_fallback) {
-        Ok(cache) => {
-            if sums::equal(&sums_now, &cache.sums) {
-                EnvironmentStatus::Okay
-            } else {
-                EnvironmentStatus::Stale
+        let status = match cache::Cache::load_with_fallback(&cache_file, &cache_file_fallback) {
+            Ok(cache) => {
+                if sums::equal(&sums_now, &cache.sums) {
+                    EnvironmentStatus::Okay
+                } else {
+                    EnvironmentStatus::Stale
+                }
             }
-        }
-        Err(_) => EnvironmentStatus::Unknown,
-    };
+            Err(_) => EnvironmentStatus::Unknown,
+        };
 
-    writeln!(&mut handle, "{}", status)?;
-    Ok(status.code())
+        writeln!(&mut handle, "{}", status)?;
+        Ok(status.code())
+    }
 }

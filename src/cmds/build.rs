@@ -3,14 +3,14 @@ use crate::config;
 use crate::env;
 use crate::sums;
 use bincode;
+use clap::Parser;
 use spinners::{Spinner, Spinners};
 use std::fs;
 use std::io::{self, Write};
 use std::os::unix;
+use std::path::PathBuf;
 use tempfile;
 use thiserror::Error;
-
-pub const NAME: &str = "build";
 
 type Result = std::result::Result<u8, Error>;
 
@@ -41,19 +41,18 @@ pub enum Error {
     Cache(bincode::Error),
 }
 
-pub fn argspec<'a>() -> clap::App<'a> {
-    clap::App::new(NAME)
-        .about("Builds the development environment and captures its environment variables")
-        .arg(
-            clap::Arg::new("dir")
-                .value_name("DIR")
-                .help("The directory in which to build"),
-        )
+/// Builds the development environment and captures its environment variables
+#[derive(Debug, Parser)]
+pub struct Command {
+    /// The directory in which to build
+    dir: Option<PathBuf>,
 }
 
-pub fn run(args: &clap::ArgMatches) -> Result {
-    let config = config::Config::load(args.value_of_os("dir"))?;
-    build(config)
+impl Command {
+    pub fn run(&self) -> Result {
+        let config = config::Config::load(self.dir.as_ref())?;
+        build(config)
+    }
 }
 
 fn spin<F, T>(f: F) -> T
