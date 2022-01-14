@@ -1,9 +1,9 @@
+use bincode;
 use crypto_hash::{hex_digest, Algorithm};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use bincode;
 
 #[derive(Serialize, Deserialize)]
 pub struct Checksums(Vec<Checksum>);
