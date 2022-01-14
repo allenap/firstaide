@@ -4,5 +4,12 @@ let
   pkgs = import sources.nixpkgs { };
   niv = import sources.niv { };
 in pkgs.mkShell {
-  buildInputs = with pkgs; [ git niv.niv pkgs.cargo pkgs.libiconv pkgs.rustc ];
+  buildInputs = with pkgs; [
+    git
+    niv.niv
+    pkgs.cargo
+    pkgs.cargo-edit # for `cargo upgrade`
+    pkgs.libiconv
+    pkgs.rustc
+  ];
 }
