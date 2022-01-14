@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate clap;
-
 use fern;
 use std::process;
 
@@ -21,18 +18,18 @@ fn main() {
     // decrease verbosity, and no fancy formatting.
 
     let matches = clap::App::new("firstaide")
-        .version(crate_version!())
-        .author(crate_authors!())
+        // .version(version!())
+        // .author(authors!())
         .about("First, as in prior to, aide.")
         .arg(
-            clap::Arg::with_name("verbose")
+            clap::Arg::new("verbose")
                 .long("verbose")
                 .global(true)
                 .help("Be more verbose")
                 .conflicts_with("quiet"),
         )
         .arg(
-            clap::Arg::with_name("quiet")
+            clap::Arg::new("quiet")
                 .long("quiet")
                 .global(true)
                 .help("Be quieter")
@@ -61,14 +58,17 @@ fn main() {
 
     use error::Error::*;
     let result: Result<u8, error::Error> = match matches.subcommand() {
-        (cmds::build::NAME, Some(subm)) => cmds::build::run(subm).map_err(BuildError),
-        (cmds::status::NAME, Some(subm)) => cmds::status::run(subm).map_err(StatusError),
-        (cmds::clean::NAME, Some(subm)) => cmds::clean::run(subm).map_err(CleanError),
-        (cmds::hook::NAME, Some(subm)) => cmds::hook::run(subm).map_err(HookError),
-        (cmds::env::NAME, Some(subm)) => cmds::env::run(subm).map_err(EnvError),
+        Some((cmds::build::NAME, subm)) => cmds::build::run(subm).map_err(BuildError),
+        Some((cmds::status::NAME, subm)) => cmds::status::run(subm).map_err(StatusError),
+        Some((cmds::clean::NAME, subm)) => cmds::clean::run(subm).map_err(CleanError),
+        Some((cmds::hook::NAME, subm)) => cmds::hook::run(subm).map_err(HookError),
+        Some((cmds::env::NAME, subm)) => cmds::env::run(subm).map_err(EnvError),
         // This last branch should not be taken while `SubcommandRequired` is in
         // effect, but Rust insists that we cater for it, so we do.
-        (name, _) => Err(CommandNotFound(name.into())),
+        Some((name, _)) => Err(CommandNotFound(name.into())),
+        None => todo!(
+            "no error. This was previously not possible and should be handled more gracefully!"
+        ),
     };
 
     match result {

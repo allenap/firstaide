@@ -53,11 +53,11 @@ impl From<io::Error> for Error {
     }
 }
 
-pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
-    clap::SubCommand::with_name(NAME)
+pub fn argspec<'a>() -> clap::App<'a> {
+    clap::App::new(NAME)
         .about("Builds the development environment and captures its environment variables")
         .arg(
-            clap::Arg::with_name("dir")
+            clap::Arg::new("dir")
                 .value_name("DIR")
                 .help("The directory in which to build"),
         )

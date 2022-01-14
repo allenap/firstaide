@@ -38,16 +38,14 @@ impl From<bincode::Error> for Error {
     }
 }
 
-pub fn argspec<'a, 'b>() -> clap::App<'a, 'b> {
-    clap::SubCommand::with_name(NAME)
-        .about("Serialize the environment")
-        .arg(
-            clap::Arg::with_name("out")
-                .short("o")
-                .long("out")
-                .value_name("OUT")
-                .help("Where to dump the environment; defaults to stdout"),
-        )
+pub fn argspec<'a>() -> clap::App<'a> {
+    clap::App::new(NAME).about("Serialize the environment").arg(
+        clap::Arg::new("out")
+            .short('o')
+            .long("out")
+            .value_name("OUT")
+            .help("Where to dump the environment; defaults to stdout"),
+    )
 }
 
 pub fn run(args: &clap::ArgMatches) -> Result {
