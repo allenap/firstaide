@@ -16,5 +16,5 @@ pub enum Error {
     Hook(cmds::hook::Error),
 
     #[error("env failed: {0}")]
-    Env(cmds::env::Error),
+    Env(anyhow::Error),
 }
