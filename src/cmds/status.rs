@@ -2,21 +2,10 @@ use crate::cache;
 use crate::config;
 use crate::status::EnvironmentStatus;
 use crate::sums;
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use thiserror::Error;
-
-type Result = std::result::Result<u8, Error>;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(transparent)]
-    Config(#[from] config::Error),
-
-    #[error("input/output error: {0}")]
-    Io(#[from] io::Error),
-}
 
 /// Reports the status of the development environment
 ///
@@ -29,12 +18,14 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn run(&self) -> Result {
-        let config = config::Config::load(self.dir.as_ref())?;
+    pub fn run(&self) -> Result<u8> {
+        let config = config::Config::load(self.dir.as_ref()).context("could not load config")?;
         let stdout = io::stdout();
         let mut handle = stdout.lock();
 
-        let sums_now = sums::Checksums::from(&config.watch_files()?)?;
+        let sums_now =
+            sums::Checksums::from(&config.watch_files().context("could not get watch files")?)
+                .context("could not calculate checksums")?;
         let cache_file = config.cache_file(&sums_now);
         let cache_file_fallback = config.cache_file_most_recent();
 
@@ -49,7 +40,7 @@ impl Command {
             Err(_) => EnvironmentStatus::Unknown,
         };
 
-        writeln!(&mut handle, "{}", status)?;
+        writeln!(&mut handle, "{}", status).context("could not write status")?;
         Ok(status.code())
     }
 }

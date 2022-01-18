@@ -7,7 +7,7 @@ pub enum Error {
     Build(cmds::build::Error),
 
     #[error("status failed: {0}")]
-    Status(cmds::status::Error),
+    Status(anyhow::Error),
 
     #[error("clean failed: {0}")]
     Clean(anyhow::Error),
