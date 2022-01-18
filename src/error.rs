@@ -4,7 +4,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("build failed: {0}")]
-    Build(cmds::build::Error),
+    Build(anyhow::Error),
 
     #[error("status failed: {0}")]
     Status(anyhow::Error),

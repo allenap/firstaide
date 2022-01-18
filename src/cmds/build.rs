@@ -2,44 +2,15 @@ use crate::cache;
 use crate::config;
 use crate::env;
 use crate::sums;
+use anyhow::{bail, Context, Result};
 use bincode;
 use clap::Parser;
 use spinners::{Spinner, Spinners};
 use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::os::unix;
 use std::path::PathBuf;
 use tempfile;
-use thiserror::Error;
-
-type Result = std::result::Result<u8, Error>;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(transparent)]
-    Config(#[from] config::Error),
-
-    #[error("input/output error: {0}")]
-    Io(#[from] io::Error),
-
-    #[error("direnv broke: {0}")]
-    DirEnv(String),
-
-    #[error("could not capture outside environment")]
-    EnvOutsideCapture,
-
-    #[error("problem decoding outside environment: {0}")]
-    EnvOutsideDecode(bincode::Error),
-
-    #[error("could not capture inside environment")]
-    EnvInsideCapture,
-
-    #[error("problem decoding inside environment: {0}")]
-    EnvInsideDecode(bincode::Error),
-
-    #[error("cache could not be saved")]
-    Cache(bincode::Error),
-}
 
 /// Builds the development environment and captures its environment variables
 #[derive(Debug, Parser)]
@@ -49,7 +20,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn run(&self) -> Result {
+    pub fn run(&self) -> Result<u8> {
         let config = config::Config::load(self.dir.as_ref())?;
         build(config)
     }
@@ -70,25 +41,31 @@ where
     }
 }
 
-fn build(config: config::Config) -> Result {
+fn build(config: config::Config) -> Result<u8> {
     // 0. Check `direnv` is new enough. Older versions have bugs that prevent
     // building from working correctly.
-    check_direnv_version(&config).map_err(Error::DirEnv)?;
+    check_direnv_version(&config).context("could not check direnv version")?;
 
     // 1. Allow `direnv`.
     log::info!("Allow direnv in {:?}.", &config.build_dir);
-    if !config.command_to_allow_direnv().status()?.success() {
-        return Err(Error::DirEnv("could not enable direnv".into()));
+    if !config
+        .command_to_allow_direnv()
+        .status()
+        .context("could not run `direnv allow`")?
+        .success()
+    {
+        bail!("could not enable direnv");
     }
 
     // 2. Create output directory.
     log::info!("Create cache dir at {:?}.", &config.cache_dir);
-    fs::create_dir_all(&config.cache_dir)?;
+    fs::create_dir_all(&config.cache_dir).context("could not create cache dir")?;
 
     // Setting up additional OS pipes for subprocesses to communicate back to us
     // is not well supported in the Rust standard library, so we use files in a
     // temporary directory instead.
-    let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)?;
+    let temp_dir = tempfile::TempDir::new_in(&config.cache_dir)
+        .context("could not create temporary directory")?;
     let temp_path = temp_dir.path().to_owned();
 
     // 3a. Capture outside environment.
@@ -97,15 +74,25 @@ fn build(config: config::Config) -> Result {
         let dump_path = temp_path.join("outside");
         let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
         log::debug!("{:?}", dump_cmd);
-        let mut dump_proc = dump_cmd.spawn()?;
-        if !dump_proc.wait()?.success() {
-            return Err(Error::EnvOutsideCapture);
+        let mut dump_proc = dump_cmd
+            .spawn()
+            .context("could not spawn dumping command")?;
+        if !dump_proc
+            .wait()
+            .context("could not wait for dumping command")?
+            .success()
+        {
+            bail!("failed to capture outside environment")
         }
-        match bincode::deserialize(&fs::read(dump_path)?) {
+
+        match bincode::deserialize(
+            &fs::read(dump_path).context("could not read dumped environment")?,
+        ) {
             Ok(env) => Ok(env),
-            Err(err) => Err(Error::EnvOutsideDecode(err)),
+            err => err.context("could not deserialize dumped environment"),
         }
-    })?;
+    })
+    .context("could not capture outside environment")?;
 
     // 3b. Capture inside environment.
     log::info!("Capture inside environment (may involve a full build).");
@@ -113,15 +100,25 @@ fn build(config: config::Config) -> Result {
         let dump_path = temp_path.join("inside");
         let mut dump_cmd = config.command_to_dump_env_inside(&dump_path, &env_outside);
         log::debug!("{:?}", dump_cmd);
-        let mut dump_proc = dump_cmd.spawn()?;
-        if !dump_proc.wait()?.success() {
-            return Err(Error::EnvInsideCapture);
+        let mut dump_proc = dump_cmd
+            .spawn()
+            .context("could not spawn dumping command")?;
+        if !dump_proc
+            .wait()
+            .context("could not wait for dumping command")?
+            .success()
+        {
+            bail!("failed to capture outside environment")
         }
-        match bincode::deserialize(&fs::read(dump_path)?) {
+
+        match bincode::deserialize(
+            &fs::read(dump_path).context("could not read dumped environment")?,
+        ) {
             Ok(env) => Ok(env),
-            Err(err) => Err(Error::EnvInsideDecode(err)),
+            err => err.context("could not deserialize dumped environment"),
         }
-    })?;
+    })
+    .context("could not capture inside environment")?;
 
     // 4. Calculate environment diff.
     log::info!("Calculate environment diff.");
@@ -129,7 +126,8 @@ fn build(config: config::Config) -> Result {
 
     // 5. Calculate checksums.
     log::info!("Calculate file checksums.");
-    let checksums = spin(|| sums::Checksums::from(&config.watch_files()?))?;
+    let checksums = spin(|| sums::Checksums::from(&config.watch_files()?))
+        .context("could not calculate checksums")?;
     let cache_file = config.cache_file(&checksums);
 
     // 6. Write out cache.
@@ -138,16 +136,18 @@ fn build(config: config::Config) -> Result {
         diff: env_diff,
         sums: checksums,
     };
-    cache.save(&cache_file).map_err(Error::Cache)?;
+    cache.save(&cache_file).context("could not save cache")?;
 
     // 7. Update the most recent cache file link.
     log::info!("Update most recent cache file link.");
     {
         // Write a new symlink into the temporary directory.
         let cache_file_link = temp_path.join("cache");
-        unix::fs::symlink(&cache_file, &cache_file_link)?;
+        unix::fs::symlink(&cache_file, &cache_file_link)
+            .context("could not create cache file link")?;
         // Atomically replace any existing symlink with the new one.
-        fs::rename(&cache_file_link, &config.cache_file_most_recent())?
+        fs::rename(&cache_file_link, &config.cache_file_most_recent())
+            .context("could not replace existing symlink with the new one")?
     }
 
     // 8. Write to the build log. This may be a useful record, but, since we
@@ -159,41 +159,43 @@ fn build(config: config::Config) -> Result {
         let mut build_log = fs::OpenOptions::new()
             .append(true)
             .create(true)
-            .open(&config.build_log_file())?;
+            .open(&config.build_log_file())
+            .context("could not open build log file")?;
         let build_time = chrono::offset::Local::now();
         writeln!(
             &mut build_log,
             "{}  {}",
             &build_time.format("%+"),
             &cache_file.display()
-        )?;
-        build_log.sync_all()?;
+        )
+        .context("could not write log line")?;
+        build_log.sync_all().context("could not sync build log")?;
     }
 
     // Done.
     Ok(0)
 }
 
-fn check_direnv_version(config: &config::Config) -> std::result::Result<(), String> {
+fn check_direnv_version(config: &config::Config) -> Result<()> {
     let version_min = semver::Version::new(2, 21, 2);
     let mut command = config.command_direnv();
     command.arg("version");
-    let command_output = command.output().map_err(|err| format!("{}", err))?;
+    let command_output = command
+        .output()
+        .context("could not read `direnv version` output")?;
+
     let version_string = String::from_utf8_lossy(&command_output.stdout);
-    let version = semver::Version::parse(&version_string)
-        .map_err(|err| format!("could not parse version {:?}: {}", version_string, err))?;
+    let version = semver::Version::parse(&version_string).context("could not parse version")?;
     if version < version_min {
-        Err(
-            format!(
-                concat!(
-                    "direnv is too old ({}); upgrade to {} or later.\n",
-                    "--> Nix: nix-channel --update && nix-env --install direnv && nix-env --upgrade direnv\n",
-                    "--> Homebrew: brew update && brew install direnv && brew upgrade direnv",
-                ),
-                version,
-                version_min,
-            )
-        )
+        bail!(
+            concat!(
+                "direnv is too old ({}); upgrade to {} or later.\n",
+                "--> Nix: nix-channel --update && nix-env --install direnv && nix-env --upgrade direnv\n",
+                "--> Homebrew: brew update && brew install direnv && brew upgrade direnv",
+            ),
+            version,
+            version_min,
+        );
     } else {
         Ok(())
     }
