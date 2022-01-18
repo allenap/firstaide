@@ -3,7 +3,6 @@ use crate::config;
 use crate::env;
 use crate::sums;
 use anyhow::{bail, Context, Result};
-use bincode;
 use clap::Parser;
 use spinners::{Spinner, Spinners};
 use std::fs;
@@ -72,25 +71,7 @@ fn build(config: config::Config) -> Result<u8> {
     log::info!("Capture outside environment.");
     let env_outside: env::Env = spin(|| {
         let dump_path = temp_path.join("outside");
-        let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
-        log::debug!("{:?}", dump_cmd);
-        let mut dump_proc = dump_cmd
-            .spawn()
-            .context("could not spawn dumping command")?;
-        if !dump_proc
-            .wait()
-            .context("could not wait for dumping command")?
-            .success()
-        {
-            bail!("failed to capture outside environment")
-        }
-
-        match bincode::deserialize(
-            &fs::read(dump_path).context("could not read dumped environment")?,
-        ) {
-            Ok(env) => Ok(env),
-            err => err.context("could not deserialize dumped environment"),
-        }
+        env::capture(&dump_path, config.command_to_dump_env_outside(&dump_path))
     })
     .context("could not capture outside environment")?;
 
@@ -98,25 +79,10 @@ fn build(config: config::Config) -> Result<u8> {
     log::info!("Capture inside environment (may involve a full build).");
     let env_inside: env::Env = spin(|| {
         let dump_path = temp_path.join("inside");
-        let mut dump_cmd = config.command_to_dump_env_inside(&dump_path, &env_outside);
-        log::debug!("{:?}", dump_cmd);
-        let mut dump_proc = dump_cmd
-            .spawn()
-            .context("could not spawn dumping command")?;
-        if !dump_proc
-            .wait()
-            .context("could not wait for dumping command")?
-            .success()
-        {
-            bail!("failed to capture outside environment")
-        }
-
-        match bincode::deserialize(
-            &fs::read(dump_path).context("could not read dumped environment")?,
-        ) {
-            Ok(env) => Ok(env),
-            err => err.context("could not deserialize dumped environment"),
-        }
+        env::capture(
+            &dump_path,
+            config.command_to_dump_env_inside(&dump_path, &env_outside),
+        )
     })
     .context("could not capture inside environment")?;
 

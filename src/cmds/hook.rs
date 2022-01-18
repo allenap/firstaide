@@ -3,7 +3,7 @@ use crate::config;
 use crate::env;
 use crate::status::EnvironmentStatus;
 use crate::sums;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use bstr::ByteSlice;
 use clap::Parser;
 use shell_quote::bash;
@@ -39,22 +39,8 @@ impl Command {
                 .or_else(|_err| tempfile::TempDir::new())
                 .context("could not set up a temporary directory")?;
             let dump_path = temp_dir.path().join("outside");
-            let mut dump_cmd = config.command_to_dump_env_outside(&dump_path);
-            let mut dump_proc = dump_cmd.spawn()?;
-            if !dump_proc
-                .wait()
-                .context("could not spawn environment-dumping task")?
-                .success()
-            {
-                bail!("could not capture outside environment");
-            }
 
-            match bincode::deserialize(
-                &fs::read(dump_path).context("could not read dumped environment file")?,
-            ) {
-                Ok(env) => Ok(env),
-                err => err.context("could not deserialize dumped environment"),
-            }
+            env::capture(&dump_path, config.command_to_dump_env_outside(&dump_path))
         }
         .context("could not capture outside environment")?;
 

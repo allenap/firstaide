@@ -1,9 +1,13 @@
+use anyhow::{bail, Context, Result};
 use bstr::ByteSlice;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::hash_map::HashMap;
 use std::ffi::OsString;
+use std::fs;
 use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+use std::process::Command;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Change {
@@ -426,5 +430,26 @@ mod tests {
                 Removed(name, _) => env.insert(name.clone(), None),
             };
         }
+    }
+}
+
+pub fn capture(dump_path: &Path, mut dump_cmd: Command) -> Result<Env> {
+    log::debug!("{:?}", dump_cmd);
+    let mut dump_proc = dump_cmd
+        .spawn()
+        .context("could not spawn dumping command")?;
+    if !dump_proc
+        .wait()
+        .context("could not wait for dumping command")?
+        .success()
+    {
+        bail!("failed to capture environment")
+    }
+
+    match bincode::deserialize(
+        &fs::read(dump_path).context("could not read dumped environment file")?,
+    ) {
+        Ok(env) => Ok(env),
+        err => err.context("could not deserialize dumped environment"),
     }
 }
