@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use path_absolutize::Absolutize;
 use serde::Deserialize;
 use std::env;
@@ -7,29 +8,8 @@ use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use thiserror::Error;
 
 use crate::sums;
-
-type Result = std::result::Result<Config, Error>;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("input/output error: {0}")]
-    Io(#[from] io::Error),
-
-    #[error("config file not found; started from {}", .0.display())]
-    ConfigNotFound(PathBuf),
-
-    #[error("direnv not found on PATH")]
-    DirenvNotFound,
-
-    #[error("configuration file not valid: {0}")]
-    Invalid(#[from] toml::de::Error),
-
-    #[error("couuld not use configuration: {0}")]
-    Other(String),
-}
 
 #[derive(Debug)]
 pub struct Config {
@@ -83,10 +63,18 @@ impl Default for Messages {
 }
 
 impl Config {
-    pub fn load<T: Into<PathBuf>>(dir: Option<T>) -> Result {
+    pub fn load<T: Into<PathBuf>>(dir: Option<T>) -> Result<Config> {
         let dir = match dir {
-            Some(d) => d.into().absolutize()?.to_path_buf(),
-            None => PathBuf::new().absolutize()?.to_path_buf(),
+            Some(d) => {
+                let buf = d.into();
+                buf.absolutize()
+                    .with_context(|| format!("could not absolutize {}", buf.display()))?
+                    .to_path_buf()
+            }
+            None => PathBuf::new()
+                .absolutize()
+                .context("could not make an absolute path")?
+                .to_path_buf(),
         };
 
         // Find and load a configuration file.
@@ -94,35 +82,41 @@ impl Config {
             .ancestors()
             .map(|path| path.join(".firstaide.toml"))
             .find(|path| path.is_file())
-            .ok_or_else(|| Error::ConfigNotFound(dir.to_path_buf()))?;
-        let config_bytes: Vec<u8> = fs::read(&config_file)?;
-        let config_data: ConfigData = toml::from_slice(&config_bytes)?;
+            .context("could not find .firstaide.toml")?;
+        let config_bytes: Vec<u8> = fs::read(&config_file).context("could not read config file")?;
+        let config_data: ConfigData =
+            toml::from_slice(&config_bytes).context("could not parse config file as TOML")?;
 
         // All paths are resolved relative to the directory where we found the
         // configuration file.
-        let datum_dir = (config_file.parent())
-            .ok_or_else(|| Error::Other("could not get directory of configuration file".into()))?;
+        let datum_dir = config_file
+            .parent()
+            .context("could not get directory of configuration file")?;
 
         Ok(Config {
             build_dir: datum_dir.to_path_buf(),
             cache_dir: datum_dir
                 .join(config_data.cache_dir)
-                .absolutize()?
+                .absolutize()
+                .context("could not make an absolute path to the cache directory")?
                 .to_path_buf(),
             build_exe: datum_dir
                 .join(config_data.build_exe)
-                .absolutize()?
+                .absolutize()
+                .context("could not make an absolute path to the executables directory")?
                 .to_path_buf(),
             watch_exe: datum_dir
                 .join(config_data.watch_exe)
-                .absolutize()?
+                .absolutize()
+                .context("could not make an absolute path to the watch directory")?
                 .to_path_buf(),
-            direnv_exe: search_path("direnv").ok_or(Error::DirenvNotFound)?,
+            direnv_exe: search_path("direnv").context("could not find `direnv` on the path")?,
             parent_dir: datum_dir
                 .join(config_data.parent_dir)
-                .absolutize()?
+                .absolutize()
+                .context("could not make an absolute path to the parent directory")?
                 .to_path_buf(),
-            self_exe: env::current_exe()?,
+            self_exe: env::current_exe().context("could not get the current executable name")?,
             messages: config_data.messages,
         })
     }
