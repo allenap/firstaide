@@ -8,7 +8,6 @@ use bstr::ByteSlice;
 use clap::Parser;
 use shell_quote::bash;
 use std::env::vars_os;
-use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tempfile;
