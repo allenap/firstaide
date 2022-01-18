@@ -10,7 +10,7 @@ pub enum Error {
     Status(cmds::status::Error),
 
     #[error("clean failed: {0}")]
-    Clean(cmds::clean::Error),
+    Clean(anyhow::Error),
 
     #[error("hook failed: {0}")]
     Hook(anyhow::Error),
