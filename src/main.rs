@@ -1,4 +1,3 @@
-use crate::error::Error;
 use clap::Parser;
 use std::process;
 
@@ -6,9 +5,9 @@ mod cache;
 mod cmds;
 mod config;
 mod env;
-mod error;
 mod status;
 mod sums;
+use anyhow::Context;
 
 #[derive(Debug, Parser)]
 #[clap(about, version, author)]
@@ -48,17 +47,17 @@ impl Config {
             process::exit(2);
         }
 
-        let result: Result<u8, error::Error> = match &self.command {
-            Command::Build(build) => build.run().map_err(Error::Build),
-            Command::Status(status) => status.run().map_err(Error::Status),
-            Command::Clean(clean) => clean.run().map_err(Error::Clean),
-            Command::Hook(hook) => hook.run().map_err(Error::Hook),
-            Command::Env(env) => env.run().map_err(Error::Env),
+        let result = match &self.command {
+            Command::Build(build) => build.run().context("build failed"),
+            Command::Status(status) => status.run().context("status failed"),
+            Command::Clean(clean) => clean.run().context("clean failed"),
+            Command::Hook(hook) => hook.run().context("hook failed"),
+            Command::Env(env) => env.run().context("env failed"),
         };
 
         match result {
             Err(err) => {
-                log::error!("{}", err);
+                log::error!("{:?}", err);
                 process::exit(2);
             }
             Ok(code) => {
